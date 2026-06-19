@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — FinFlow</title>
+  <meta name="description" content="Manage your income and expenses, view monthly reports and financial insights." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div class="dashboard-layout">
+
+  <!-- ── Sidebar ─────────────────────────── -->
+  <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">💰</div>
+      <span class="sidebar-logo-text">FinFlow</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <span class="sidebar-section-title">Overview</span>
+      <button class="nav-item active" id="nav-dashboard" onclick="navigate('dashboard')" aria-current="page">
+        <span class="nav-icon">📊</span> Dashboard
+      </button>
+      <button class="nav-item" id="nav-transactions" onclick="navigate('transactions')">
+        <span class="nav-icon">💳</span> Transactions
+      </button>
+
+      <span class="sidebar-section-title">Reports</span>
+      <button class="nav-item" id="nav-reports" onclick="navigate('reports')">
+        <span class="nav-icon">📅</span> Monthly Reports
+      </button>
+      <button class="nav-item" id="nav-yearly" onclick="navigate('yearly')">
+        <span class="nav-icon">🗓️</span> Yearly Reports
+      </button>
+      <button class="nav-item" id="nav-analytics" onclick="navigate('analytics')">
+        <span class="nav-icon">📈</span> Analytics
+      </button>
+
+      <span class="sidebar-section-title">Income</span>
+      <button class="nav-item" id="nav-sources" onclick="navigate('sources')">
+        <span class="nav-icon">💼</span> Source Balances
+      </button>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="user-mini" id="user-mini">
+        <div class="user-mini-avatar" id="user-avatar">?</div>
+        <div>
+          <div class="user-mini-name" id="user-name-sidebar">Loading…</div>
+          <div class="user-mini-email" id="user-email-sidebar">—</div>
+        </div>
+      </div>
+      <button class="nav-item" onclick="handleLogout()" id="btn-logout">
+        <span class="nav-icon">🚪</span> Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Main Content ────────────────────── -->
+  <div class="main-content">
+
+    <!-- Top Bar -->
+    <div class="topbar">
+      <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()" aria-label="Toggle sidebar">☰</button>
+      <div class="topbar-greeting">Good <span id="greeting-time"></span>, <span id="topbar-name">there</span> 👋</div>
+      <div class="flex gap-1">
+        <button class="btn btn-primary btn-sm" onclick="openModal()" id="btn-add-fab-top">
+          ＋ Add Entry
+        </button>
+      </div>
+    </div>
+
+    <!-- ── DASHBOARD PAGE ─────────────────── -->
+    <section class="page-section active" id="section-dashboard">
+      <div class="page-header">
+        <h2>Financial Overview</h2>
+        <p id="current-month-label">Loading current month…</p>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="summary-grid">
+        <div class="glass summary-card income-card">
+          <div class="summary-card-label">
+            <span class="dot"></span>Total Income
+          </div>
+          <div class="summary-card-value" id="card-income">₹0</div>
+          <div class="summary-card-sub" id="card-income-count">0 transactions</div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-fill progress-income" id="bar-income" style="width:0%"></div>
+          </div>
+        </div>
+
+        <div class="glass summary-card expense-card">
+          <div class="summary-card-label">
+            <span class="dot"></span>Total Expenses
+          </div>
+          <div class="summary-card-value" id="card-expense">₹0</div>
+          <div class="summary-card-sub" id="card-expense-count">0 transactions</div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-fill progress-expense" id="bar-expense" style="width:0%"></div>
+          </div>
+        </div>
+
+        <div class="glass summary-card net-card">
+          <div class="summary-card-label">
+            <span class="dot"></span>Net Balance
+          </div>
+          <div class="summary-card-value" id="card-net">₹0</div>
+          <div class="summary-card-sub" id="card-net-label">This month</div>
+        </div>
+      </div>
+
+      <!-- Income Source Balances -->
+      <div class="glass income-sources-panel" id="income-sources-panel" style="display:none">
+        <div class="income-sources-header">
+          <div>
+            <h3 class="income-sources-title">💼 Income Source Balances</h3>
+            <p class="income-sources-sub">See which income pot each expense is drawn from</p>
+          </div>
+          <select class="form-control" id="sources-month-filter" onchange="loadIncomeSourceBalances()" style="width:auto;min-width:150px;font-size:0.82rem">
+            <option value="">All time</option>
+          </select>
+        </div>
+        <div class="income-sources-grid" id="income-sources-grid"></div>
+      </div>
+
+      <!-- Charts -->
+      <div class="charts-grid">
+        <div class="glass chart-card">
+          <div class="chart-card-header">
+            <span class="chart-card-title">Income vs Expenses (6 months)</span>
+          </div>
+          <div class="chart-container" style="height:260px">
+            <canvas id="trendChart"></canvas>
+          </div>
+        </div>
+        <div class="glass chart-card">
+          <div class="chart-card-header">
+            <span class="chart-card-title">Expense Categories</span>
+          </div>
+          <div class="chart-container" style="height:260px">
+            <canvas id="categoryChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Transactions -->
+      <div class="glass" style="padding:24px">
+        <div class="transactions-header">
+          <h3>Recent Transactions</h3>
+          <button class="btn btn-ghost btn-sm" onclick="navigate('transactions')">View all →</button>
+        </div>
+        <div class="table-wrapper">
+          <table id="recent-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Type</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody id="recent-tbody">
+              <tr><td colspan="5"><div class="empty-state"><div class="empty-state-icon">📭</div><p>No recent transactions</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TRANSACTIONS PAGE ───────────────── -->
+    <section class="page-section" id="section-transactions">
+      <div class="page-header">
+        <h2>All Transactions</h2>
+        <p>Complete history of your income and expenses</p>
+      </div>
+
+      <div class="glass" style="padding:24px">
+        <div class="transactions-header">
+          <div class="flex gap-2" style="flex-wrap:wrap">
+            <select class="form-control" id="tx-month-filter" onchange="filterTransactions()" style="width:auto;min-width:160px">
+              <option value="">All months</option>
+            </select>
+            <select class="form-control" id="tx-type-filter" onchange="filterTransactions()" style="width:auto">
+              <option value="">All types</option>
+              <option value="income">Income only</option>
+              <option value="expense">Expenses only</option>
+            </select>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openModal()">＋ Add Entry</button>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tx-tbody">
+              <tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">📭</div><p>No transactions yet</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="tx-summary" style="display:flex;gap:24px;padding:16px 0 0;border-top:1px solid var(--border);margin-top:4px;flex-wrap:wrap;font-size:0.85rem">
+        </div>
+      </div>
+    </section>
+
+    <!-- ── REPORTS PAGE ────────────────────── -->
+    <section class="page-section" id="section-reports">
+      <div class="page-header">
+        <h2>Monthly Reports</h2>
+        <p>Click on any month to see the detailed breakdown</p>
+      </div>
+
+      <div class="month-cards-grid" id="month-cards-grid">
+        <div class="glass summary-card" style="padding:40px;text-align:center;grid-column:1/-1">
+          <div class="empty-state-icon">📅</div>
+          <p>Loading monthly data…</p>
+        </div>
+      </div>
+
+      <!-- Month detail -->
+      <div id="month-detail" class="hidden">
+        <div class="glass" style="padding:24px;margin-bottom:20px">
+          <div class="transactions-header">
+            <h3 id="detail-month-title">Month Detail</h3>
+            <div class="flex gap-1">
+              <button class="btn btn-ghost btn-sm" id="btn-download-month" onclick="downloadMonthlyCSV()" title="Download CSV">⬇ CSV</button>
+              <button class="btn btn-ghost btn-sm" onclick="printReport('month-detail')" title="Print / Save as PDF">🖨 PDF</button>
+              <button class="btn btn-ghost btn-sm" onclick="closeMonthDetail()">✕ Close</button>
+            </div>
+          </div>
+          <div class="summary-grid" style="margin-top:16px;margin-bottom:0">
+            <div class="glass summary-card income-card" style="padding:18px">
+              <div class="summary-card-label"><span class="dot"></span>Income</div>
+              <div class="summary-card-value" id="detail-income" style="font-size:1.5rem">₹0</div>
+            </div>
+            <div class="glass summary-card expense-card" style="padding:18px">
+              <div class="summary-card-label"><span class="dot"></span>Expense</div>
+              <div class="summary-card-value" id="detail-expense" style="font-size:1.5rem">₹0</div>
+            </div>
+            <div class="glass summary-card net-card" style="padding:18px">
+              <div class="summary-card-label"><span class="dot"></span>Net</div>
+              <div class="summary-card-value" id="detail-net" style="font-size:1.5rem">₹0</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass" style="padding:24px">
+          <h3 style="margin-bottom:16px">Transactions</h3>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th>Category</th>
+                  <th>Type</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody id="detail-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── YEARLY REPORTS PAGE ───────────────── -->
+    <section class="page-section" id="section-yearly">
+      <div class="page-header">
+        <h2>Yearly Reports</h2>
+        <p>Annual income &amp; expense summary — click a year for full breakdown</p>
+      </div>
+
+      <div class="month-cards-grid" id="year-cards-grid">
+        <div class="glass summary-card" style="padding:40px;text-align:center;grid-column:1/-1">
+          <div class="empty-state-icon">🗓️</div>
+          <p>Loading yearly data…</p>
+        </div>
+      </div>
+
+      <!-- Year detail -->
+      <div id="year-detail" class="hidden">
+        <div class="glass" style="padding:24px;margin-bottom:20px">
+          <div class="transactions-header">
+            <h3 id="detail-year-title">Year Detail</h3>
+            <div class="flex gap-1">
+              <button class="btn btn-ghost btn-sm" id="btn-download-year" onclick="downloadYearlyCSV()" title="Download CSV">⬇ CSV</button>
+              <button class="btn btn-ghost btn-sm" onclick="printReport('year-detail')" title="Print / Save as PDF">🖨 PDF</button>
+              <button class="btn btn-ghost btn-sm" onclick="closeYearDetail()">✕ Close</button>
+            </div>
+          </div>
+
+          <!-- Year summary cards -->
+          <div class="summary-grid" style="margin-top:16px;margin-bottom:24px">
+            <div class="glass summary-card income-card" style="padding:18px">
+              <div class="summary-card-label"><span class="dot"></span>Annual Income</div>
+              <div class="summary-card-value" id="detail-year-income" style="font-size:1.5rem">₹0</div>
+            </div>
+            <div class="glass summary-card expense-card" style="padding:18px">
+              <div class="summary-card-label"><span class="dot"></span>Annual Expense</div>
+              <div class="summary-card-value" id="detail-year-expense" style="font-size:1.5rem">₹0</div>
+            </div>
+            <div class="glass summary-card net-card" style="padding:18px">
+              <div class="summary-card-label"><span class="dot"></span>Net Balance</div>
+              <div class="summary-card-value" id="detail-year-net" style="font-size:1.5rem">₹0</div>
+            </div>
+          </div>
+
+          <!-- Year bar chart -->
+          <h3 style="margin-bottom:16px;font-size:0.95rem">Month-by-Month Breakdown</h3>
+          <div style="height:260px;position:relative">
+            <canvas id="yearDetailChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Monthly breakdown table -->
+        <div class="glass" style="padding:24px;margin-bottom:20px">
+          <h3 style="margin-bottom:16px">Monthly Summary</h3>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Month</th><th>Income</th><th>Expense</th><th>Net</th><th>Transactions</th><th>Download</th>
+                </tr>
+              </thead>
+              <tbody id="year-month-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Top categories for the year -->
+        <div class="glass" style="padding:24px">
+          <h3 style="margin-bottom:20px">Top Expense Categories</h3>
+          <div id="year-cat-bars"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── ANALYTICS PAGE ─────────────────── -->
+    <section class="page-section" id="section-analytics">
+      <div class="page-header">
+        <h2>Analytics</h2>
+        <p>Deep insights into your financial patterns</p>
+      </div>
+
+      <div class="charts-grid" style="margin-bottom:24px">
+        <div class="glass chart-card">
+          <div class="chart-card-header">
+            <span class="chart-card-title">Monthly Net Balance Trend</span>
+          </div>
+          <div class="chart-container" style="height:280px">
+            <canvas id="netTrendChart"></canvas>
+          </div>
+        </div>
+        <div class="glass chart-card">
+          <div class="chart-card-header">
+            <span class="chart-card-title">Income vs Expense (all time)</span>
+          </div>
+          <div class="chart-container" style="height:280px">
+            <canvas id="allTimeChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass" style="padding:24px">
+        <h3 style="margin-bottom:20px">Top Expense Categories (All Time)</h3>
+        <div id="category-bars"></div>
+      </div>
+    </section>
+
+    <!-- ── INCOME SOURCE BALANCES PAGE ───────── -->
+    <section class="page-section" id="section-sources">
+      <div class="page-header">
+        <h2>Income Source Balances</h2>
+        <p>Track exactly how much you've earned, spent, and kept from each income stream</p>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="glass sources-filter-bar" id="sources-filter-bar">
+        <div class="sources-filter-left">
+          <span class="sources-filter-label">Period</span>
+          <div class="sources-period-tabs" id="sources-period-tabs">
+            <button class="src-tab active" id="src-tab-all" onclick="setSrcPeriod('all')">All Time</button>
+            <button class="src-tab" id="src-tab-month" onclick="setSrcPeriod('month')">This Month</button>
+            <button class="src-tab" id="src-tab-custom" onclick="setSrcPeriod('custom')">Custom</button>
+          </div>
+          <select class="form-control src-custom-month hidden" id="src-custom-month" onchange="loadSourcesPage()">
+            <option value="">Pick month…</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openModal()">＋ Add Entry</button>
+      </div>
+
+      <!-- Overall summary strip -->
+      <div class="sources-summary-strip glass" id="sources-summary-strip">
+        <div class="strip-stat">
+          <div class="strip-label">Total Income</div>
+          <div class="strip-value text-income" id="src-total-income">₹0</div>
+        </div>
+        <div class="strip-divider"></div>
+        <div class="strip-stat">
+          <div class="strip-label">Tracked Expenses</div>
+          <div class="strip-value text-expense" id="src-tracked-expense">₹0</div>
+          <div class="strip-sub" id="src-tracked-sub">across all sources</div>
+        </div>
+        <div class="strip-divider"></div>
+        <div class="strip-stat">
+          <div class="strip-label">Untracked Expenses</div>
+          <div class="strip-value" id="src-untracked-expense" style="color:var(--text-secondary)">₹0</div>
+          <div class="strip-sub">no income source tagged</div>
+        </div>
+        <div class="strip-divider"></div>
+        <div class="strip-stat">
+          <div class="strip-label">Net Available</div>
+          <div class="strip-value" id="src-net-available">₹0</div>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div id="sources-empty" class="glass" style="padding:60px;text-align:center;display:none">
+        <div class="empty-state-icon">💼</div>
+        <p style="font-size:1rem;margin-bottom:8px;color:var(--text-primary)">No income recorded yet</p>
+        <p style="font-size:0.85rem">Add an income transaction to see your source balances here</p>
+      </div>
+
+      <!-- Per-source wallet cards -->
+      <div class="source-wallets-grid" id="source-wallets-grid"></div>
+
+    </section>
+
+  </div><!-- /main-content -->
+
+</div><!-- /dashboard-layout -->
+
+<!-- ── FAB Button ───────────────────────────── -->
+<button class="fab" id="fab-btn" onclick="openModal()" title="Add transaction" aria-label="Add new transaction">＋</button>
+
+<!-- ── Add Transaction Modal ────────────────── -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOnOverlay(event)">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-header">
+      <h3 id="modal-title">Add Transaction</h3>
+      <button class="modal-close" onclick="closeModal()" aria-label="Close modal">✕</button>
+    </div>
+
+    <!-- Type toggle -->
+    <div class="type-toggle" style="margin-bottom:24px">
+      <button class="type-btn active-income" id="type-income-btn" onclick="setType('income')">💚 Income</button>
+      <button class="type-btn" id="type-expense-btn" onclick="setType('expense')">🔴 Expense</button>
+    </div>
+
+    <form id="tx-form" onsubmit="handleAddTransaction(event)" novalidate>
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="form-group">
+          <label for="tx-amount">Amount (₹)</label>
+          <input type="number" id="tx-amount" class="form-control" placeholder="0.00" min="0.01" step="0.01" required />
+        </div>
+
+        <div class="form-group">
+          <label for="tx-category">Category</label>
+          <select id="tx-category" class="form-control" required>
+            <option value="">Select category…</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="tx-description">Description <span style="color:var(--text-muted);font-size:0.75rem">(optional)</span></label>
+          <input type="text" id="tx-description" class="form-control" placeholder="e.g. Netflix subscription" />
+        </div>
+
+        <div class="form-group">
+          <label for="tx-date">Date</label>
+          <input type="date" id="tx-date" class="form-control" required />
+        </div>
+
+        <!-- Pay from (expenses only) -->
+        <div class="form-group" id="paid-from-group" style="display:none">
+          <label for="tx-paid-from">Pay from <span style="color:var(--text-muted);font-size:0.75rem">(optional — choose income source)</span></label>
+          <select id="tx-paid-from" class="form-control">
+            <option value="">— Not specified —</option>
+          </select>
+        </div>
+
+        <div id="modal-error" class="auth-error"></div>
+
+        <button type="submit" class="btn btn-primary btn-full" id="tx-submit-btn">
+          <span id="tx-btn-text">Add Transaction</span>
+          <span id="tx-btn-spinner" class="spinner hidden"></span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container" aria-live="polite"></div>
+
+<script src="/js/dashboard.js"></script>
+</body>
+</html>

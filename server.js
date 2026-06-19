@@ -10,7 +10,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'finflow_super_secret_key_2024_chan
 
 // Middleware
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '..', 'frontend', 'public')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Auth Middleware
 function requireAuth(req, res, next) {
@@ -391,8 +391,8 @@ function buildCSV(rows) {
 }
 
 // SPA Fallback
-app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, '..', 'frontend', 'public', 'dashboard.html')));
-app.get('*',          (req, res) => res.sendFile(path.join(__dirname, '..', 'frontend', 'public', 'index.html')));
+app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
+app.get('*',          (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 // Start
 initDb().then(() => {

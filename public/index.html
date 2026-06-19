@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinFlow — Personal Finance Tracker</title>
+  <meta name="description" content="Track your personal income and expenses effortlessly. Beautiful reports, real-time insights, and complete data security." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+<div class="auth-page">
+
+  <!-- LEFT: Hero Panel -->
+  <div class="auth-hero">
+    <div class="auth-grid"></div>
+    <div class="auth-orb auth-orb-1"></div>
+    <div class="auth-orb auth-orb-2"></div>
+
+    <div class="auth-hero-content">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">💰</div>
+        <span class="auth-logo-text">FinFlow</span>
+      </div>
+
+      <h1>Your money,<br/>your story.</h1>
+
+      <p>
+        Track every rupee, understand your spending patterns,
+        and take control of your financial future — all in one elegant dashboard.
+      </p>
+
+      <div class="auth-stats">
+        <div class="auth-stat-item">
+          <div class="auth-stat-num">100%</div>
+          <div class="auth-stat-label">Data secure</div>
+        </div>
+        <div class="auth-stat-item">
+          <div class="auth-stat-num">0₹</div>
+          <div class="auth-stat-label">Cost to use</div>
+        </div>
+        <div class="auth-stat-item">
+          <div class="auth-stat-num">∞</div>
+          <div class="auth-stat-label">Transactions</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Form Panel -->
+  <div class="auth-form-panel">
+    <div class="auth-card">
+
+      <!-- Tabs -->
+      <div class="auth-tabs" role="tablist">
+        <button class="auth-tab active" id="tab-login" onclick="switchTab('login')" role="tab" aria-selected="true">Sign In</button>
+        <button class="auth-tab" id="tab-signup" onclick="switchTab('signup')" role="tab" aria-selected="false">Create Account</button>
+      </div>
+
+      <!-- Login Form -->
+      <div id="form-login">
+        <h2>Welcome back</h2>
+        <p class="form-subtitle">Sign in to access your financial dashboard</p>
+
+        <div id="login-error" class="auth-error" role="alert"></div>
+
+        <form class="auth-form" id="loginForm" onsubmit="handleLogin(event)" novalidate>
+          <div class="form-group">
+            <label for="login-email">Email address</label>
+            <input type="email" id="login-email" class="form-control" placeholder="you@example.com" required autocomplete="email" />
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" class="form-control" placeholder="••••••••" required autocomplete="current-password" />
+          </div>
+          <button type="submit" class="btn btn-primary btn-full btn-lg" id="login-btn">
+            <span id="login-btn-text">Sign In</span>
+            <span id="login-btn-spinner" class="spinner hidden"></span>
+          </button>
+        </form>
+
+        <p style="text-align:center; margin-top:20px; font-size:0.85rem; color:var(--text-muted)">
+          Don't have an account?
+          <a href="#" onclick="switchTab('signup')" style="color:var(--primary-light);text-decoration:none;font-weight:600">Create one →</a>
+        </p>
+      </div>
+
+      <!-- Signup Form -->
+      <div id="form-signup" class="hidden">
+        <h2>Get started free</h2>
+        <p class="form-subtitle">Create your account and start tracking today</p>
+
+        <div id="signup-error" class="auth-error" role="alert"></div>
+
+        <form class="auth-form" id="signupForm" onsubmit="handleSignup(event)" novalidate>
+          <div class="form-group">
+            <label for="signup-name">Full name</label>
+            <input type="text" id="signup-name" class="form-control" placeholder="John Doe" required autocomplete="name" />
+          </div>
+          <div class="form-group">
+            <label for="signup-email">Email address</label>
+            <input type="email" id="signup-email" class="form-control" placeholder="you@example.com" required autocomplete="email" />
+          </div>
+          <div class="form-group">
+            <label for="signup-password">Password <span style="color:var(--text-muted);font-size:0.75rem">(min 6 chars)</span></label>
+            <input type="password" id="signup-password" class="form-control" placeholder="••••••••" required autocomplete="new-password" />
+          </div>
+          <button type="submit" class="btn btn-primary btn-full btn-lg" id="signup-btn">
+            <span id="signup-btn-text">Create Account</span>
+            <span id="signup-btn-spinner" class="spinner hidden"></span>
+          </button>
+        </form>
+
+        <p style="text-align:center; margin-top:20px; font-size:0.85rem; color:var(--text-muted)">
+          Already have an account?
+          <a href="#" onclick="switchTab('login')" style="color:var(--primary-light);text-decoration:none;font-weight:600">Sign in →</a>
+        </p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container" aria-live="polite"></div>
+
+<script src="/js/auth.js"></script>
+</body>
+</html>
