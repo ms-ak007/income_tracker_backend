@@ -1,0 +1,16 @@
+{
+  "name": "income-tracker",
+  "version": "1.0.0",
+  "description": "Personal Income & Expense Tracker",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "sql.js": "^1.10.2"
+  }
+}
