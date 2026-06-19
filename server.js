@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt  = require('bcryptjs');
 const jwt     = require('jsonwebtoken');
 const path    = require('path');
+const cors    = require('cors');
 const { initDb, run, get, all } = require('./database');
 
 const app = express();
@@ -9,6 +10,7 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'finflow_super_secret_key_2024_change_in_prod';
 
 // Middleware
+app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
