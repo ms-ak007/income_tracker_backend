@@ -48,9 +48,13 @@ function setupUserUI() {
   }
 }
 
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? ''
+  : 'https://income-tracker-backend-1411.onrender.com';
+
 // ─── API Helper ───────────────────────────────────────────────
 async function api(path, opts = {}) {
-  const res = await fetch(path, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     ...opts,
     headers: {
       'Content-Type':  'application/json',
@@ -236,6 +240,11 @@ function navigate(page) {
   if (page === 'reports')      loadReportsPage();
   if (page === 'yearly')       loadYearlyPage();
   if (page === 'analytics')    loadAnalyticsPage();
+  if (page === 'automations')  loadAutomations();
+  if (page === 'cashflow')     loadCashFlowPage();
+  if (page === 'tax')          loadTaxPage();
+  if (page === 'policy')       loadPolicyPage();
+  if (page === 'bank')         loadBankPage();
   if (page === 'sources') {
     // Reset period state and active tab visually, then load after paint
     _srcPeriod = 'all';
@@ -1228,7 +1237,7 @@ function downloadYearlyCSV() {
 // Authenticated file download via hidden anchor
 function downloadWithAuth(event, url, filename) {
   if (event) event.preventDefault();
-  fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+  fetch(`${API_BASE_URL}${url}`, { headers: { 'Authorization': `Bearer ${token}` } })
     .then(r => r.blob())
     .then(blob => {
       const a   = document.createElement('a');
@@ -1271,8 +1280,1102 @@ function printReport(sectionId) {
     <p style="color:#6b7280;margin-bottom:4px">FinFlow Financial Report</p>
     <p style="color:#6b7280;font-size:12px">Generated: ${new Date().toLocaleString('en-IN')}</p>
     <hr style="margin:16px 0">
-    ${section.innerHTML}
+      ${section.innerHTML}
     <script>window.onload=()=>window.print();<\/script>
   </body></html>`);
   printWin.document.close();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  AUTOMATIONS PAGE
+// ═══════════════════════════════════════════════════════════════
+
+async function loadAutomations() {
+  const data = await api('/api/settings/notifications');
+  if (!data || !data.settings) return;
+  const s = data.settings;
+
+  // Email toggles
+  const notifEl = document.getElementById('notif-email');
+  if (notifEl) notifEl.value = s.notify_email || '';
+  setToggle('tog-monthly', s.monthly_report !== 0);
+  setToggle('tog-daily',   s.daily_digest   === 1);
+  setToggle('tog-budget',  s.budget_alert   !== 0);
+
+  // Global budget
+  const gbEl = document.getElementById('global-budget');
+  if (gbEl) gbEl.value = s.global_budget || '';
+
+  // Bank parser
+  setToggle('tog-bank', s.bank_parser === 1);
+  const imapUserEl = document.getElementById('imap-user');
+  if (imapUserEl) imapUserEl.value = s.imap_user || '';
+
+  // Status
+  const statusEl = document.getElementById('bank-status');
+  if (statusEl && s.bank_last_polled) {
+    statusEl.textContent = `Last polled: ${new Date(s.bank_last_polled).toLocaleString('en-IN')} · ${s.bank_last_count || 0} transactions imported`;
+  }
+
+  // Populate category dropdowns
+  populateAutoCategorySelects();
+
+  await loadBudgetCaps();
+  await loadRecurring();
+  updateRecCategoryOptions();
+}
+
+function setToggle(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.checked = !!val;
+}
+
+function populateAutoCategorySelects() {
+  const expCats = CATEGORIES.expense;
+  const allCats = [...CATEGORIES.income, ...CATEGORIES.expense];
+
+  const budgetCatSel = document.getElementById('budget-cat');
+  if (budgetCatSel) {
+    budgetCatSel.innerHTML = expCats.map(c => `<option value="${c}">${c}</option>`).join('');
+  }
+
+  updateRecCategoryOptions();
+}
+
+function updateRecCategoryOptions() {
+  const type = document.getElementById('rec-type')?.value || 'income';
+  const sel  = document.getElementById('rec-cat');
+  if (!sel) return;
+  sel.innerHTML = CATEGORIES[type].map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
+// ── Save notification toggles ────────────────────────────────────
+async function saveNotifSettings() {
+  const notifyEmail   = document.getElementById('notif-email')?.value.trim() || null;
+  const monthly_report = document.getElementById('tog-monthly')?.checked ? 1 : 0;
+  const daily_digest   = document.getElementById('tog-daily')?.checked   ? 1 : 0;
+  const budget_alert   = document.getElementById('tog-budget')?.checked  ? 1 : 0;
+
+  await api('/api/settings/notifications', {
+    method: 'PUT',
+    body: JSON.stringify({ notify_email: notifyEmail, monthly_report, daily_digest, budget_alert }),
+  });
+  showToast('Notification settings saved', 'success');
+}
+
+// ── Save global budget ────────────────────────────────────────────
+async function saveGlobalBudget() {
+  const val = parseFloat(document.getElementById('global-budget')?.value);
+  if (isNaN(val) || val <= 0) {
+    showToast('Enter a valid amount', 'error'); return;
+  }
+  await api('/api/settings/notifications', {
+    method: 'PUT',
+    body: JSON.stringify({ global_budget: val }),
+  });
+  showToast(`Global budget set to ₹${formatNum(val)}`, 'success');
+}
+
+// ── Save bank IMAP settings ───────────────────────────────────────
+async function saveBankSettings() {
+  const bank_parser = document.getElementById('tog-bank')?.checked ? 1 : 0;
+  const imap_user   = document.getElementById('imap-user')?.value.trim() || null;
+  const imap_pass   = document.getElementById('imap-pass')?.value || null;
+
+  await api('/api/settings/notifications', {
+    method: 'PUT',
+    body: JSON.stringify({ bank_parser, imap_user, imap_pass }),
+  });
+  showToast('Bank settings saved', 'success');
+}
+
+// ── Test email ────────────────────────────────────────────────────
+async function sendTestEmail() {
+  const btn = document.getElementById('btn-test-email');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  // Save current email first
+  const notifyEmail = document.getElementById('notif-email')?.value.trim() || null;
+  await api('/api/settings/notifications', {
+    method: 'PUT',
+    body: JSON.stringify({ notify_email: notifyEmail }),
+  });
+  const data = await api('/api/settings/test-email', { method: 'POST', body: JSON.stringify({}) });
+  if (btn) { btn.disabled = false; btn.textContent = '📨 Test'; }
+  if (data?.success) showToast('✅ ' + data.message, 'success');
+  else               showToast('❌ ' + (data?.error || 'Failed'), 'error');
+}
+
+// ── Budget caps ───────────────────────────────────────────────────
+async function loadBudgetCaps() {
+  const data = await api('/api/budgets');
+  if (!data) return;
+  const list = document.getElementById('budget-caps-list');
+  if (!list) return;
+  if (!data.budgets || data.budgets.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85rem">No budget caps set. Add one above.</div>`;
+    return;
+  }
+  list.innerHTML = data.budgets.map(b => `
+    <div class="budget-cap-row">
+      <div>
+        <div class="cap-name">${escHtml(b.category)}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="cap-amt">₹${formatNum(b.amount)}/mo</div>
+        <button class="td-delete" onclick="deleteBudgetCap(${b.id})" title="Remove">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+function showAddBudgetForm() {
+  document.getElementById('add-budget-form').style.display = '';
+  document.getElementById('budget-cat').focus();
+}
+
+async function addBudgetCap() {
+  const category = document.getElementById('budget-cat')?.value;
+  const amount   = parseFloat(document.getElementById('budget-amt')?.value);
+  if (!category || isNaN(amount) || amount <= 0) {
+    showToast('Select a category and enter a valid amount', 'error'); return;
+  }
+  const data = await api('/api/budgets', { method: 'POST', body: JSON.stringify({ category, amount }) });
+  if (data?.budget) {
+    document.getElementById('add-budget-form').style.display = 'none';
+    document.getElementById('budget-amt').value = '';
+    showToast(`Budget cap set: ${category} → ₹${formatNum(amount)}/mo`, 'success');
+    await loadBudgetCaps();
+  }
+}
+
+async function deleteBudgetCap(id) {
+  if (!confirm('Remove this budget cap?')) return;
+  await api(`/api/budgets/${id}`, { method: 'DELETE' });
+  showToast('Budget cap removed', 'success');
+  await loadBudgetCaps();
+}
+
+// ── Recurring Transactions ────────────────────────────────────────
+async function loadRecurring() {
+  const data = await api('/api/recurring');
+  if (!data) return;
+  const list = document.getElementById('recurring-list');
+  if (!list) return;
+  if (!data.recurring || data.recurring.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:0.85rem">No recurring transactions set up yet.</div>`;
+    return;
+  }
+  list.innerHTML = data.recurring.map(r => {
+    const badge = r.type === 'income'
+      ? `<span class="rec-badge-income">Income</span>`
+      : `<span class="rec-badge-expense">Expense</span>`;
+    const inactive = r.active ? '' : 'rec-inactive';
+    const lastRun  = r.last_run ? `Last run: ${formatDate(r.last_run.slice(0,10))}` : 'Never run';
+    return `
+      <div class="recurring-row ${inactive}">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            ${badge}
+            <span class="rec-desc">${escHtml(r.description || r.category)}</span>
+          </div>
+          <div class="rec-meta">${escHtml(r.category)} · ₹${formatNum(r.amount)} · Day ${r.day_of_month} of month · ${lastRun}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          <button class="btn btn-ghost btn-sm" onclick="toggleRecurring(${r.id}, ${r.active ? 0 : 1})">${r.active ? '⏸ Pause' : '▶ Resume'}</button>
+          <button class="td-delete" onclick="deleteRecurring(${r.id})" title="Delete">🗑</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function showAddRecurringForm() {
+  document.getElementById('add-recurring-form').style.display = '';
+  updateRecCategoryOptions();
+}
+
+async function addRecurring() {
+  const type        = document.getElementById('rec-type')?.value;
+  const category    = document.getElementById('rec-cat')?.value;
+  const amount      = parseFloat(document.getElementById('rec-amt')?.value);
+  const description = document.getElementById('rec-desc')?.value.trim();
+  const day_of_month = parseInt(document.getElementById('rec-day')?.value) || 1;
+
+  if (!type || !category || isNaN(amount) || amount <= 0) {
+    showToast('Fill in all required fields', 'error'); return;
+  }
+
+  const data = await api('/api/recurring', {
+    method: 'POST',
+    body: JSON.stringify({ type, category, amount, description, day_of_month }),
+  });
+
+  if (data?.recurring) {
+    document.getElementById('add-recurring-form').style.display = 'none';
+    showToast(`Recurring transaction saved: ${description || category}`, 'success');
+    await loadRecurring();
+  }
+}
+
+async function toggleRecurring(id, active) {
+  await api(`/api/recurring/${id}`, { method: 'PUT', body: JSON.stringify({ active }) });
+  showToast(active ? 'Recurring resumed' : 'Recurring paused', 'success');
+  await loadRecurring();
+}
+
+async function deleteRecurring(id) {
+  if (!confirm('Delete this recurring transaction?')) return;
+  await api(`/api/recurring/${id}`, { method: 'DELETE' });
+  showToast('Recurring transaction deleted', 'success');
+  await loadRecurring();
+}
+
+// ── Manual job triggers ───────────────────────────────────────────
+async function triggerMonthlyReport() {
+  const btn = document.getElementById('btn-trigger-monthly');
+  if (btn) { btn.disabled = true; btn.textContent = 'Running…'; }
+  const data = await api('/api/debug/run-monthly-report', { method: 'POST', body: JSON.stringify({}) });
+  if (btn) { btn.disabled = false; btn.textContent = '▶ Run Monthly Report Now'; }
+  if (data?.success) showToast('Monthly report job completed', 'success');
+  else               showToast('Report job failed: ' + (data?.error || 'unknown'), 'error');
+}
+
+async function triggerDailyDigest() {
+  const btn = document.getElementById('btn-trigger-daily');
+  if (btn) { btn.disabled = true; btn.textContent = 'Running…'; }
+  const data = await api('/api/debug/run-daily-digest', { method: 'POST', body: JSON.stringify({}) });
+  if (btn) { btn.disabled = false; btn.textContent = '▶ Run Daily Digest Now'; }
+  if (data?.success) showToast('Daily digest sent', 'success');
+  else               showToast('Digest failed: ' + (data?.error || 'unknown'), 'error');
+}
+
+async function triggerBankPoller() {
+  const btn = document.getElementById('btn-poll-now');
+  if (btn) { btn.disabled = true; btn.textContent = 'Polling…'; }
+  const data = await api('/api/debug/run-bank-poller', { method: 'POST', body: JSON.stringify({}) });
+  if (btn) { btn.disabled = false; btn.textContent = '▶ Poll Now'; }
+  if (data?.success) {
+    showToast('Bank email poll complete', 'success');
+    await loadAutomations(); // refresh status
+  } else {
+    showToast('Poll failed: ' + (data?.error || 'unknown'), 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BANK LINKING PAGE FUNCTIONS
+// ═══════════════════════════════════════════════════════════════
+
+async function loadBankPage() {
+  const data = await api('/api/settings/notifications');
+  if (!data || !data.settings) return;
+  const s = data.settings;
+
+  // Active status toggle
+  const togActive = document.getElementById('bank-tog-active');
+  if (togActive) togActive.checked = s.bank_parser === 1;
+
+  // Gmail Address
+  const userEl = document.getElementById('bank-imap-user');
+  if (userEl) userEl.value = s.imap_user || '';
+
+  // Password placeholder
+  const passEl = document.getElementById('bank-imap-pass');
+  if (passEl) passEl.value = '';
+
+  // Status
+  const statusEl = document.getElementById('bank-page-status');
+  if (statusEl) {
+    if (s.bank_last_polled) {
+      statusEl.textContent = `Last synced: ${new Date(s.bank_last_polled).toLocaleString('en-IN')} · ${s.bank_last_count || 0} transactions imported`;
+    } else {
+      statusEl.textContent = 'Never synced';
+    }
+  }
+
+  // Update bank connection visual cards based on status
+  const hasCreds = !!(s.imap_user && s.imap_configured);
+  const active = s.bank_parser === 1 && hasCreds;
+  
+  const banks = ['hdfc', 'sbi', 'icici', 'axis', 'kotak', 'paytm'];
+  banks.forEach(b => {
+    const card = document.getElementById(`bank-card-${b}`);
+    const status = document.getElementById(`bank-status-${b}`);
+    if (card && status) {
+      if (active) {
+        card.style.borderColor = 'rgba(16,185,129,0.3)';
+        card.style.background = 'rgba(16,185,129,0.03)';
+        status.textContent = 'Linked & Active';
+        status.style.color = 'var(--income-light)';
+      } else if (hasCreds) {
+        card.style.borderColor = 'rgba(245,158,11,0.2)';
+        card.style.background = 'rgba(245,158,11,0.02)';
+        status.textContent = 'Paused';
+        status.style.color = '#f59e0b';
+      } else {
+        card.style.borderColor = 'rgba(255,255,255,0.05)';
+        card.style.background = 'rgba(255,255,255,0.02)';
+        status.textContent = 'Not Linked';
+        status.style.color = 'var(--text-muted)';
+      }
+    }
+  });
+}
+
+// Bank page save settings
+async function saveBankPageSettings(showToastMsg = false) {
+  const bank_parser = document.getElementById('bank-tog-active')?.checked ? 1 : 0;
+  const imap_user   = document.getElementById('bank-imap-user')?.value.trim() || null;
+  const imap_pass   = document.getElementById('bank-imap-pass')?.value || null;
+
+  const bodyObj = { bank_parser, imap_user };
+  if (imap_pass) bodyObj.imap_pass = imap_pass;
+
+  await api('/api/settings/notifications', {
+    method: 'PUT',
+    body: JSON.stringify(bodyObj),
+  });
+  
+  if (showToastMsg) {
+    showToast('Bank settings updated successfully', 'success');
+  }
+  await loadBankPage();
+}
+
+// Bank page manually trigger poller
+async function triggerBankPagePoller() {
+  const btn = document.getElementById('btn-bank-poll-now');
+  if (btn) { btn.disabled = true; btn.textContent = 'Syncing…'; }
+  const data = await api('/api/debug/run-bank-poller', { method: 'POST', body: JSON.stringify({}) });
+  if (btn) { btn.disabled = false; btn.textContent = '▶ Sync Now'; }
+  if (data?.success) {
+    showToast('Bank email synchronization complete', 'success');
+    await loadBankPage();
+  } else {
+    showToast('Synchronization failed: ' + (data?.error || 'unknown'), 'error');
+  }
+}
+
+// Drag & drop bank statement parsing
+let _importedTransactions = [];
+
+function handleStatementDrop(e) {
+  e.preventDefault();
+  const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (file) processStatementFile(file);
+}
+
+function handleStatementFile(e) {
+  const file = e.target && e.target.files && e.target.files[0];
+  if (file) processStatementFile(file);
+}
+
+function resetStatementUpload() {
+  _importedTransactions = [];
+  document.getElementById('statement-import-results').classList.add('hidden');
+  document.getElementById('bank-statement-dropzone').classList.remove('hidden');
+  document.getElementById('statement-file-input').value = '';
+}
+
+async function processStatementFile(file) {
+  if (!file.name.endsWith('.csv')) {
+    showToast('Please upload a CSV file bank statement', 'error');
+    return;
+  }
+
+  const dropzone = document.getElementById('bank-statement-dropzone');
+  const loader = document.getElementById('statement-importing');
+  const results = document.getElementById('statement-import-results');
+
+  if (dropzone) dropzone.classList.add('hidden');
+  if (loader) loader.classList.remove('hidden');
+  if (results) results.classList.add('hidden');
+
+  try {
+    const formData = new FormData();
+    formData.append('statement', file);
+
+    const r = await fetch(API_BASE_URL + '/api/bank/import-statement', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token },
+      body: formData,
+    });
+    
+    const data = await r.json();
+    if (loader) loader.classList.add('hidden');
+
+    if (!data || data.error || !data.transactions) {
+      showToast('Import failed: ' + (data && data.error ? data.error : 'unknown'), 'error');
+      if (dropzone) dropzone.classList.remove('hidden');
+      return;
+    }
+
+    _importedTransactions = data.transactions;
+    
+    // Render preview table
+    const tbody = document.getElementById('statement-tbody');
+    const successCount = document.getElementById('statement-success-count');
+    if (successCount) successCount.textContent = `${_importedTransactions.length} transaction(s) ready`;
+
+    if (tbody) {
+      tbody.innerHTML = _importedTransactions.map(t => {
+        const netColor = t.type === 'income' ? 'var(--income-light)' : 'var(--expense-light)';
+        return `<tr style="border-bottom: 1px solid var(--border); font-size: 0.75rem;">
+          <td style="padding: 6px 8px;">${t.date}</td>
+          <td style="padding: 6px 8px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escHtml(t.description)}</td>
+          <td style="padding: 6px 8px;"><span class="badge badge-${t.type}">${t.type}</span></td>
+          <td style="padding: 6px 8px;"><span class="badge badge-${t.type}">${escHtml(t.category)}</span></td>
+          <td style="padding: 6px 8px; text-align: right; color: ${netColor}; font-weight: bold;">₹${formatNum(t.amount)}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    if (results) results.classList.remove('hidden');
+
+  } catch (err) {
+    if (loader) loader.classList.add('hidden');
+    if (dropzone) dropzone.classList.remove('hidden');
+    showToast('Failed to upload statement: ' + err.message, 'error');
+  }
+}
+
+async function confirmImportedStatement() {
+  if (!_importedTransactions || _importedTransactions.length === 0) return;
+  
+  const saveBtn = document.querySelector('#statement-import-results button');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+
+  try {
+    const data = await api('/api/bank/confirm-statement', {
+      method: 'POST',
+      body: JSON.stringify({ transactions: _importedTransactions }),
+    });
+
+    if (data && data.success) {
+      showToast(`Imported ${data.count} transactions!`, 'success');
+      resetStatementUpload();
+      await loadDashboard();
+    } else {
+      showToast('Save failed: ' + (data && data.error ? data.error : 'unknown'), 'error');
+    }
+  } catch (err) {
+    showToast('Network error saving transactions', 'error');
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '✅ Save All Transactions'; }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  AI QUICK-LOG
+// ═══════════════════════════════════════════════════════════════
+
+let _aiResult = null;
+
+async function sendAiQuickLog() {
+  const input = document.getElementById('ai-quicklog-input');
+  const text  = input?.value.trim();
+  if (!text || text.length < 3) { showToast('Please type something first', 'error'); return; }
+
+  const sendBtn = document.getElementById('ai-send-btn');
+  if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = '⏳'; }
+
+  try {
+    const data = await api('/api/ai/log-from-text', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    });
+
+    if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '↵'; }
+
+    if (!data || data.error) {
+      showToast('AI could not parse: ' + (data?.error || 'unknown'), 'error');
+      return;
+    }
+
+    _aiResult = data.result;
+    showAiPreview(data.result);
+    if (input) input.value = '';
+
+  } catch (err) {
+    if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '↵'; }
+    showToast('Network error', 'error');
+  }
+}
+
+function handleAiInputKey(e) {
+  if (e.key === 'Enter') sendAiQuickLog();
+}
+
+function showAiPreview(result) {
+  const card = document.getElementById('ai-preview-card');
+  if (!card) return;
+
+  const conf = result.confidence || 'medium';
+  const confColor = conf === 'high' ? 'var(--income-light)' : conf === 'medium' ? '#f59e0b' : 'var(--expense-light)';
+
+  const badge = document.getElementById('ai-preview-confidence');
+  if (badge) {
+    badge.textContent = conf.toUpperCase() + ' confidence';
+    badge.style.color = confColor;
+    badge.style.border = '1px solid ' + confColor;
+  }
+
+  const fields = document.getElementById('ai-preview-fields');
+  if (fields) {
+    let warningHtml = '';
+    if (result.source === 'fallback') {
+      warningHtml = '<div class="ai-fallback-warning" style="background:rgba(245,158,11,0.1);color:#f59e0b;padding:8px 12px;border-radius:6px;font-size:0.8rem;margin-bottom:12px;border:1px solid rgba(245,158,11,0.25)">' +
+        '⚠️ Running in offline fallback mode (invalid/missing API key).' +
+        '</div>';
+    }
+    fields.innerHTML = warningHtml +
+      '<div class="ai-field"><span class="ai-field-label">Type</span><span class="ai-field-value">' + escHtml(result.type || '—') + '</span></div>' +
+      '<div class="ai-field"><span class="ai-field-label">Amount</span><span class="ai-field-value ' + result.type + '">₹' + formatNum(result.amount || 0) + '</span></div>' +
+      '<div class="ai-field"><span class="ai-field-label">Category</span><span class="ai-field-value">' + escHtml(result.category || '—') + '</span></div>' +
+      '<div class="ai-field"><span class="ai-field-label">Description</span><span class="ai-field-value">' + escHtml(result.description || '—') + '</span></div>' +
+      '<div class="ai-field"><span class="ai-field-label">Date</span><span class="ai-field-value">' + escHtml(result.date || new Date().toISOString().split('T')[0]) + '</span></div>';
+  }
+
+  card.classList.remove('hidden');
+}
+
+function closeAiPreview() {
+  const card = document.getElementById('ai-preview-card');
+  if (card) card.classList.add('hidden');
+  _aiResult = null;
+}
+
+async function confirmAiLog() {
+  if (!_aiResult) return;
+  const data = await api('/api/ai/confirm-log', {
+    method: 'POST',
+    body: JSON.stringify(_aiResult),
+  });
+  if (data && data.transaction) {
+    showToast('AI transaction added!', 'success');
+    closeAiPreview();
+    await loadDashboard();
+    if (document.getElementById('section-transactions') && document.getElementById('section-transactions').classList.contains('active')) loadTransactionsPage();
+  } else {
+    showToast('Failed to add: ' + (data && data.error ? data.error : 'unknown'), 'error');
+  }
+}
+
+function editAiLog() {
+  if (!_aiResult) return;
+  openModal();
+  selectedType = _aiResult.type || 'expense';
+  setType(selectedType);
+  var amtEl  = document.getElementById('tx-amount');
+  var catEl  = document.getElementById('tx-category');
+  var descEl = document.getElementById('tx-description');
+  var dateEl = document.getElementById('tx-date');
+  if (amtEl)  amtEl.value  = _aiResult.amount  || '';
+  if (catEl)  catEl.value  = _aiResult.category || '';
+  if (descEl) descEl.value = _aiResult.description || '';
+  if (dateEl) dateEl.value = _aiResult.date || new Date().toISOString().split('T')[0];
+  closeAiPreview();
+}
+
+var _recognition = null;
+function toggleVoiceInput() {
+  var micBtn = document.getElementById('ai-mic-btn');
+  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) { showToast('Voice input not supported in this browser', 'error'); return; }
+  if (_recognition) {
+    _recognition.stop(); _recognition = null;
+    if (micBtn) { micBtn.textContent = '🎙'; micBtn.classList.remove('recording'); }
+    return;
+  }
+  _recognition = new SpeechRecognition();
+  _recognition.lang = 'en-IN';
+  _recognition.interimResults = false;
+  _recognition.onresult = function(e) {
+    var text = e.results[0][0].transcript;
+    var input = document.getElementById('ai-quicklog-input');
+    if (input) input.value = text;
+    sendAiQuickLog();
+  };
+  _recognition.onend = function() {
+    _recognition = null;
+    if (micBtn) { micBtn.textContent = '🎙'; micBtn.classList.remove('recording'); }
+  };
+  _recognition.onerror = function() {
+    _recognition = null;
+    if (micBtn) { micBtn.textContent = '🎙'; micBtn.classList.remove('recording'); }
+    showToast('Voice recognition error', 'error');
+  };
+  _recognition.start();
+  if (micBtn) { micBtn.textContent = '🔴'; micBtn.classList.add('recording'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RECEIPT SCANNER
+// ═══════════════════════════════════════════════════════════════
+
+var _receiptResult = null;
+
+function openReceiptModal() {
+  var overlay = document.getElementById('receipt-modal-overlay');
+  if (overlay) overlay.classList.add('open');
+  resetReceiptModal();
+}
+
+function closeReceiptModal() {
+  var overlay = document.getElementById('receipt-modal-overlay');
+  if (overlay) overlay.classList.remove('open');
+  resetReceiptModal();
+}
+
+function resetReceiptModal() {
+  _receiptResult = null;
+  var res = document.getElementById('receipt-results');
+  var scn = document.getElementById('receipt-scanning');
+  var dz  = document.getElementById('receipt-dropzone');
+  var fi  = document.getElementById('receipt-file-input');
+  if (res) res.classList.add('hidden');
+  if (scn) scn.classList.add('hidden');
+  if (dz)  dz.classList.remove('hidden');
+  if (fi)  fi.value = '';
+}
+
+function handleReceiptDrop(e) {
+  e.preventDefault();
+  var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (file) processReceiptFile(file);
+}
+
+function handleReceiptFile(e) {
+  var file = e.target && e.target.files && e.target.files[0];
+  if (file) processReceiptFile(file);
+}
+
+async function processReceiptFile(file) {
+  if (!file.type.startsWith('image/')) { showToast('Please upload an image (JPG, PNG, WebP)', 'error'); return; }
+
+  var dz  = document.getElementById('receipt-dropzone');
+  var scn = document.getElementById('receipt-scanning');
+  var res = document.getElementById('receipt-results');
+  if (dz)  dz.classList.add('hidden');
+  if (scn) scn.classList.remove('hidden');
+  if (res) res.classList.add('hidden');
+
+  try {
+    var formData = new FormData();
+    formData.append('receipt', file);
+    var r = await fetch(API_BASE_URL + '/api/ai/scan-receipt', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token },
+      body: formData,
+    });
+    var data = await r.json();
+    if (scn) scn.classList.add('hidden');
+    if (!data || !data.result) {
+      showToast('Could not scan: ' + (data && data.error ? data.error : 'unknown'), 'error');
+      if (dz) dz.classList.remove('hidden');
+      return;
+    }
+    _receiptResult = data.result;
+    showReceiptResults(data.result);
+  } catch (err) {
+    if (scn) scn.classList.add('hidden');
+    if (dz)  dz.classList.remove('hidden');
+    showToast('Receipt scan failed: ' + err.message, 'error');
+  }
+}
+
+function showReceiptResults(result) {
+  var vendorEl = document.getElementById('receipt-vendor');
+  var dcEl     = document.getElementById('receipt-date-category');
+  var taxEl    = document.getElementById('receipt-tax');
+  var totalEl  = document.getElementById('receipt-total');
+  if (vendorEl) vendorEl.textContent = result.vendor || 'Unknown Vendor';
+  if (dcEl)     dcEl.textContent = (result.date || '—') + ' · ' + (result.category || 'Other Expense');
+  if (taxEl)    taxEl.textContent = result.tax > 0 ? '₹' + formatNum(result.tax) : '—';
+  if (totalEl)  totalEl.textContent = '₹' + formatNum(result.total || 0);
+
+  var tbody = document.getElementById('receipt-items-tbody');
+  if (tbody) {
+    var items = result.items || [];
+    tbody.innerHTML = items.length
+      ? items.map(function(it) {
+          return '<tr><td>' + escHtml(it.name || '—') + '</td><td>' + (it.qty || 1) + '</td><td>₹' + formatNum(it.unit_price || 0) + '</td><td>₹' + formatNum(it.total || 0) + '</td></tr>';
+        }).join('')
+      : '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:12px">No line items detected</td></tr>';
+  }
+  var res = document.getElementById('receipt-results');
+  if (res) res.classList.remove('hidden');
+}
+
+async function confirmReceiptTransaction() {
+  if (!_receiptResult) return;
+  var data = await api('/api/transactions', {
+    method: 'POST',
+    body: JSON.stringify({
+      type: 'expense',
+      category: _receiptResult.category || 'Other Expense',
+      amount: _receiptResult.total || 0,
+      description: _receiptResult.vendor || 'Receipt scan',
+      date: _receiptResult.date || new Date().toISOString().split('T')[0],
+    }),
+  });
+  if (data && data.transaction) {
+    showToast('Receipt transaction added!', 'success');
+    closeReceiptModal();
+    await loadDashboard();
+    if (document.getElementById('section-transactions') && document.getElementById('section-transactions').classList.contains('active')) loadTransactionsPage();
+  } else {
+    showToast('Failed to add: ' + (data && data.error ? data.error : 'unknown'), 'error');
+  }
+}
+
+function rescanReceipt() { resetReceiptModal(); }
+
+// ═══════════════════════════════════════════════════════════════
+//  CASH FLOW FORECAST PAGE
+// ═══════════════════════════════════════════════════════════════
+
+var _forecastChart = null;
+
+async function loadCashFlowPage() {
+  var data = await api('/api/forecast?months=6&history=6');
+  if (!data) return;
+
+  var avgIncome  = (data.historicalAvg && data.historicalAvg.income)  || 0;
+  var avgExpense = (data.historicalAvg && data.historicalAvg.expense) || 0;
+  var avgSavings = avgIncome - avgExpense;
+
+  setText('fc-avg-income',  '₹' + formatNum(avgIncome));
+  setText('fc-avg-expense', '₹' + formatNum(avgExpense));
+
+  var savingsEl = document.getElementById('fc-avg-savings');
+  if (savingsEl) {
+    savingsEl.textContent = (avgSavings >= 0 ? '+' : '−') + '₹' + formatNum(Math.abs(avgSavings));
+    savingsEl.style.color = avgSavings >= 0 ? 'var(--income-light)' : 'var(--expense-light)';
+  }
+
+  var dqEl = document.getElementById('fc-data-quality');
+  if (dqEl) {
+    var months = data.dataMonths || 0;
+    dqEl.textContent = months + ' month' + (months !== 1 ? 's' : '') + ' of history';
+    dqEl.style.color = months >= 3 ? 'var(--income-light)' : '#f59e0b';
+  }
+
+  if (data.trends) {
+    var it = data.trends.income  >= 0 ? '+' + (data.trends.income  || 0).toFixed(1) + '%/mo' : (data.trends.income  || 0).toFixed(1) + '%/mo';
+    var et = data.trends.expense >= 0 ? '+' + (data.trends.expense || 0).toFixed(1) + '%/mo' : (data.trends.expense || 0).toFixed(1) + '%/mo';
+    setText('fc-income-trend',  'Income: ' + it);
+    setText('fc-expense-trend', 'Expense: ' + et);
+  }
+
+  var forecast = data.forecast  || [];
+  var history  = data.history   || [];
+  var ctx = document.getElementById('forecastChart');
+  if (ctx) {
+    if (_forecastChart) _forecastChart.destroy();
+    var histLabels = history.map(function(h)  { return formatMonthLabel(h.month); });
+    var fcLabels   = forecast.map(function(f) { return formatMonthLabel(f.month); });
+    var allLabels  = histLabels.concat(fcLabels);
+    var histInc = history.map(function(h)  { return h.income; });
+    var histExp = history.map(function(h)  { return h.expense; });
+    var fcInc   = forecast.map(function(f) { return f.income; });
+    var fcExp   = forecast.map(function(f) { return f.expense; });
+    var nullPad = function(arr, len) { return new Array(len).fill(null).concat(arr); };
+
+    _forecastChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: allLabels,
+        datasets: [
+          { label: 'Actual Income',    data: histInc.concat(new Array(fcLabels.length).fill(null)), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.12)', borderWidth: 2.5, pointRadius: 4, fill: true, tension: 0.3 },
+          { label: 'Actual Expense',   data: histExp.concat(new Array(fcLabels.length).fill(null)), borderColor: '#f43f5e', backgroundColor: 'rgba(244,63,94,0.08)',   borderWidth: 2.5, pointRadius: 4, fill: true, tension: 0.3 },
+          { label: 'Forecast Income',  data: nullPad(fcInc, histLabels.length), borderColor: '#10b981', borderDash: [6,4], borderWidth: 2, pointRadius: 5, backgroundColor: 'rgba(16,185,129,0.04)', fill: false, tension: 0.3 },
+          { label: 'Forecast Expense', data: nullPad(fcExp, histLabels.length), borderColor: '#f43f5e', borderDash: [6,4], borderWidth: 2, pointRadius: 5, backgroundColor: 'rgba(244,63,94,0.04)',   fill: false, tension: 0.3 },
+        ],
+      },
+      options: chartOptions({
+        plugins: { legend: { display: true, labels: { color: '#94a3b8', font: { family: 'Inter', size: 12 } } } },
+        scales: {
+          x: { ticks: { color: '#475569', maxRotation: 30 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: { ticks: { color: '#475569', callback: function(v) { return '₹' + formatNum(v); } }, grid: { color: 'rgba(255,255,255,0.06)' } },
+        },
+      }),
+    });
+  }
+
+  var tbody = document.getElementById('forecast-tbody');
+  if (tbody) {
+    var cumBalance = 0;
+    tbody.innerHTML = forecast.map(function(f) {
+      var net = (f.income || 0) - (f.expense || 0);
+      cumBalance += net;
+      var netColor = net >= 0 ? 'var(--income-light)' : 'var(--expense-light)';
+      var balColor = cumBalance >= 0 ? 'var(--income-light)' : 'var(--expense-light)';
+      var conf = f.confidence || 'low';
+      var confColor = conf === 'high' ? 'var(--income-light)' : conf === 'medium' ? '#f59e0b' : 'var(--expense-light)';
+      return '<tr>' +
+        '<td><strong>' + formatMonthLabel(f.month) + '</strong></td>' +
+        '<td class="text-income">₹' + formatNum(f.income || 0) + '</td>' +
+        '<td class="text-expense">₹' + formatNum(f.expense || 0) + '</td>' +
+        '<td style="color:' + netColor + ';font-weight:700">' + (net >= 0 ? '+' : '−') + '₹' + formatNum(Math.abs(net)) + '</td>' +
+        '<td style="color:' + balColor + '">' + (cumBalance >= 0 ? '+' : '−') + '₹' + formatNum(Math.abs(cumBalance)) + '</td>' +
+        '<td><span style="font-size:0.78rem;color:' + confColor + '">' + conf.toUpperCase() + '</span></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  if (data.idleCash && data.idleCash.length > 0) {
+    var sec   = document.getElementById('idle-cash-section');
+    var cards = document.getElementById('idle-cash-cards');
+    if (sec) sec.classList.remove('hidden');
+    if (cards) {
+      cards.innerHTML = data.idleCash.map(function(ic) {
+        return '<div class="glass auto-panel" style="margin-bottom:12px"><div class="auto-panel-header">' +
+          '<div class="auto-panel-icon">💡</div>' +
+          '<div><div class="auto-panel-title">' + escHtml(ic.source) + '</div><p class="auto-panel-sub">' + escHtml(ic.suggestion || 'Consider investing') + '</p></div>' +
+          '<div style="margin-left:auto;font-size:1.2rem;font-weight:800;color:var(--income-light)">₹' + formatNum(ic.amount) + '</div>' +
+          '</div></div>';
+      }).join('');
+    }
+  }
+}
+
+async function runWasteScan() {
+  var btn  = document.getElementById('btn-waste-scan');
+  var body = document.getElementById('waste-scan-body');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Scanning…'; }
+  if (body) body.innerHTML = '<div style="text-align:center;padding:24px"><div class="spinner" style="width:28px;height:28px;margin:0 auto 8px;border-width:3px"></div><p style="color:var(--text-muted);font-size:0.85rem">Analysing with AI…</p></div>';
+
+  var data = await api('/api/ai/subscription-scan');
+  if (btn) { btn.disabled = false; btn.textContent = '🔍 Scan Now'; }
+
+  if (!data || data.error) {
+    if (body) body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--expense-light)">' + (data && data.error ? data.error : 'Scan failed') + '</div>';
+    return;
+  }
+
+  var subscriptions = data.subscriptions || [];
+  var wasteful      = data.wasteful      || [];
+  var tips          = data.tips          || [];
+
+  var html = '';
+  if (subscriptions.length) {
+    html += '<div style="margin-bottom:20px"><h4 style="margin-bottom:12px;font-size:0.9rem;color:var(--text-secondary)">🔁 Detected Subscriptions</h4>';
+    subscriptions.forEach(function(s) {
+      html += '<div class="budget-cap-row"><div><div class="cap-name">' + escHtml(s.name || s.category) + '</div><div style="font-size:0.78rem;color:var(--text-muted)">' + (s.frequency || 'recurring') + ' · ' + (s.count || 0) + ' transactions</div></div><div class="cap-amt text-expense">₹' + formatNum(s.totalSpent) + '</div></div>';
+    });
+    html += '</div>';
+  }
+  if (wasteful.length) {
+    html += '<div style="margin-bottom:20px"><h4 style="margin-bottom:12px;font-size:0.9rem;color:var(--text-secondary)">⚠️ Potential Waste</h4>';
+    wasteful.forEach(function(w) {
+      html += '<div class="budget-cap-row"><div><div class="cap-name">' + escHtml(w.category) + '</div><div style="font-size:0.78rem;color:var(--text-muted)">' + escHtml(w.reason || '') + '</div></div><div class="cap-amt text-expense">₹' + formatNum(w.amount) + '</div></div>';
+    });
+    html += '</div>';
+  }
+  if (tips.length) {
+    html += '<div><h4 style="margin-bottom:12px;font-size:0.9rem;color:var(--text-secondary)">💡 Savings Tips</h4>';
+    tips.forEach(function(t) {
+      html += '<div style="padding:10px 12px;border-radius:8px;background:rgba(124,58,237,0.07);margin-bottom:8px;font-size:0.85rem;color:var(--text-secondary)">' + escHtml(t) + '</div>';
+    });
+    html += '</div>';
+  }
+  if (!subscriptions.length && !wasteful.length && !tips.length) {
+    html = '<div style="text-align:center;padding:24px;color:var(--income-light)">✅ No obvious waste or suspicious subscriptions detected!</div>';
+  }
+  if (body) body.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TAX & EXPORT PAGE
+// ═══════════════════════════════════════════════════════════════
+
+async function loadTaxPage() {
+  var data = await api('/api/tax/years');
+  if (!data) return;
+
+  var sel = document.getElementById('tax-fy-select');
+  if (sel && data.years) {
+    sel.innerHTML = '<option value="">Select Financial Year…</option>' +
+      data.years.map(function(y) { return '<option value="' + escHtml(y) + '">' + escHtml(y) + '</option>'; }).join('');
+
+    var now = new Date();
+    var curFY = now.getMonth() >= 3
+      ? now.getFullYear() + '-' + String(now.getFullYear() + 1).slice(-2)
+      : (now.getFullYear() - 1) + '-' + String(now.getFullYear()).slice(-2);
+    if (data.years.indexOf(curFY) !== -1) sel.value = curFY;
+  }
+
+  var exportYearSel = document.getElementById('export-year');
+  if (exportYearSel && data.years) {
+    var calYears = [];
+    data.years.forEach(function(fy) {
+      var y = parseInt(fy.split('-')[0]);
+      if (calYears.indexOf(y) === -1) calYears.push(y);
+      if (calYears.indexOf(y + 1) === -1) calYears.push(y + 1);
+    });
+    calYears.sort(function(a,b){return b-a;});
+    exportYearSel.innerHTML = '<option value="">All time</option>' +
+      calYears.map(function(y) { return '<option value="' + y + '">' + y + '</option>'; }).join('');
+  }
+
+  loadTaxReport();
+}
+
+async function loadTaxReport() {
+  var fy = document.getElementById('tax-fy-select') && document.getElementById('tax-fy-select').value;
+  if (!fy) return;
+
+  var data = await api('/api/tax/report?fy=' + fy);
+  if (!data || data.error) { showToast('Failed to load tax report: ' + (data && data.error ? data.error : 'unknown'), 'error'); return; }
+
+  var sec = document.getElementById('tax-summary-section');
+  if (sec) sec.classList.remove('hidden');
+
+  setText('tax-total-income',     '₹' + formatNum(data.totalIncome || 0));
+  setText('tax-deductible-total', '₹' + formatNum(data.totalDeductible || 0));
+  setText('tax-saved',            '₹' + formatNum(data.estimatedTaxSaved || 0));
+  setText('tax-tx-count',         data.transactionCount || 0);
+
+  var secBody = document.getElementById('tax-sections-body');
+  if (secBody) {
+    var sections = data.sections || {};
+    var entries = Object.entries(sections);
+    secBody.innerHTML = entries.length
+      ? entries.map(function(e) {
+          return '<div class="budget-cap-row"><div><div class="cap-name">' + escHtml(e[0]) + '</div><div style="font-size:0.78rem;color:var(--text-muted)">' + sectionDesc(e[0]) + '</div></div><div class="cap-amt" style="color:var(--primary-light)">₹' + formatNum(e[1]) + '</div></div>';
+        }).join('')
+      : '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85rem">No deductible transactions for this FY.</div>';
+  }
+
+  var tbody = document.getElementById('tax-deductible-tbody');
+  if (tbody) {
+    var txs = data.deductibleTransactions || [];
+    tbody.innerHTML = txs.length
+      ? txs.map(function(t) {
+          return '<tr><td>' + formatDate(t.date) + '</td><td><span class="badge badge-expense">' + escHtml(t.category) + '</span></td><td>' + escHtml(t.description || '—') + '</td><td><span style="font-size:0.78rem;color:var(--primary-light);font-weight:600">' + escHtml(t.taxSection || '—') + '</span></td><td class="text-expense">₹' + formatNum(t.amount) + '</td></tr>';
+        }).join('')
+      : '<tr><td colspan="5"><div class="empty-state"><p>No deductible transactions</p></div></td></tr>';
+  }
+}
+
+function sectionDesc(sec) {
+  var map = { '80C': 'LIC, PPF, ELSS, EPF, home loan principal', '80D': 'Health insurance premiums', 'HRA': 'House rent allowance', 'LTA': 'Leave travel allowance', '80E': 'Education loan interest', '80G': 'Charitable donations', '24B': 'Home loan interest', 'NPS': 'National Pension System (80CCD)' };
+  return map[sec] || 'Tax-deductible expense';
+}
+
+async function exportData(format) {
+  var year  = document.getElementById('export-year')  ? document.getElementById('export-year').value  : '';
+  var month = document.getElementById('export-month') ? document.getElementById('export-month').value : '';
+  var url = '/api/export/' + format;
+  var params = [];
+  if (year)  params.push('year='  + year);
+  if (month) params.push('month=' + month);
+  if (params.length) url += '?' + params.join('&');
+  var extensions = { tally: 'xml', quickbooks: 'iif', zoho: 'csv', csv: 'csv', json: 'json' };
+  downloadWithAuth(null, url, 'finflow_' + format + '_export.' + (extensions[format] || 'txt'));
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SPEND POLICY PAGE
+// ═══════════════════════════════════════════════════════════════
+
+async function loadPolicyPage() {
+  await Promise.all([loadPolicyFlags(), loadPolicyRules()]);
+}
+
+async function loadPolicyFlags() {
+  var data = await api('/api/policy/flags');
+  if (!data) return;
+  var flags = data.flags || [];
+  var badge = document.getElementById('flags-count-badge');
+  if (badge) badge.textContent = flags.length ? '(' + flags.length + ')' : '';
+  var body = document.getElementById('policy-flags-body');
+  if (!body) return;
+  body.innerHTML = flags.length
+    ? flags.map(function(f) {
+        return '<div class="budget-cap-row" style="' + (f.resolved ? 'opacity:0.5' : '') + '">' +
+          '<div style="flex:1"><div class="cap-name">' + escHtml((f.rule_type || '').replace(/_/g, ' ')) + (f.category ? ' — ' + escHtml(f.category) : '') + '</div>' +
+          '<div style="font-size:0.78rem;color:var(--text-muted)">' + escHtml(f.description || '') + ' · ' + formatDate((f.flagged_at || '').split('T')[0]) + '</div></div>' +
+          '<div style="display:flex;align-items:center;gap:12px"><div class="cap-amt text-expense">₹' + formatNum(f.amount || 0) + '</div>' +
+          (!f.resolved ? '<button class="btn btn-ghost btn-sm" onclick="resolveFlag(' + f.id + ')">✓ Resolve</button>' : '<span style="color:var(--income-light);font-size:0.78rem">Resolved</span>') +
+          '</div></div>';
+      }).join('')
+    : '<div style="text-align:center;padding:24px;color:var(--income-light)">✅ No active flags</div>';
+}
+
+async function resolveFlag(flagId) {
+  await api('/api/policy/flags/' + flagId + '/resolve', { method: 'PUT', body: JSON.stringify({}) });
+  showToast('Flag resolved', 'success');
+  await loadPolicyFlags();
+}
+
+async function loadPolicyRules() {
+  var data = await api('/api/policy/rules');
+  if (!data) return;
+  var ruleCatSel = document.getElementById('rule-category');
+  if (ruleCatSel) {
+    ruleCatSel.innerHTML = '<option value="">All categories</option>' +
+      CATEGORIES.expense.map(function(c) { return '<option value="' + escHtml(c) + '">' + escHtml(c) + '</option>'; }).join('');
+  }
+  var list = document.getElementById('policy-rules-list');
+  if (!list) return;
+  var rules = data.rules || [];
+  var typeLabel = { category_cap: 'Single Tx Cap', monthly_cap: 'Monthly Cap', duplicate: 'Duplicate Detection', frequency: 'Frequency Limit', merchant_block: 'Merchant Blocklist' };
+  list.innerHTML = rules.length
+    ? rules.map(function(r) {
+        return '<div class="budget-cap-row"><div style="flex:1"><div class="cap-name">' + (typeLabel[r.rule_type] || r.rule_type) + (r.category ? ' — ' + escHtml(r.category) : '') + '</div>' +
+          '<div style="font-size:0.78rem;color:var(--text-muted)">' + (r.threshold ? '₹' + formatNum(r.threshold) + ' per ' + (r.period || 'month') : '') + (r.action === 'notify' ? ' · Email notify' : ' · Flag for review') + '</div></div>' +
+          '<button class="td-delete" onclick="deletePolicyRule(' + r.id + ')" title="Delete rule">🗑</button></div>';
+      }).join('')
+    : '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85rem">No policy rules yet. Add one above.</div>';
+}
+
+function showAddRuleForm() {
+  var form = document.getElementById('add-rule-form');
+  if (form) form.style.display = '';
+  updateRuleForm();
+}
+
+function updateRuleForm() {
+  var type = document.getElementById('rule-type') ? document.getElementById('rule-type').value : '';
+  var tg = document.getElementById('rule-threshold-group');
+  var tl = document.getElementById('rule-threshold-label');
+  var pg = document.getElementById('rule-period-group');
+  var mg = document.getElementById('rule-merchant-group');
+  if (type === 'duplicate') {
+    if (tg) tg.style.display = 'none'; if (pg) pg.style.display = 'none'; if (mg) pg.style.display = 'none';
+  } else if (type === 'merchant_block') {
+    if (tg) tg.style.display = 'none'; if (pg) pg.style.display = 'none'; if (mg) mg.style.display = '';
+  } else if (type === 'frequency') {
+    if (tg) tg.style.display = ''; if (tl) tl.textContent = 'Max transactions'; if (pg) pg.style.display = ''; if (mg) mg.style.display = 'none';
+  } else {
+    if (tg) tg.style.display = ''; if (tl) tl.textContent = 'Amount (₹)'; if (pg) pg.style.display = ''; if (mg) mg.style.display = 'none';
+  }
+}
+
+async function addPolicyRule() {
+  var rule_type = document.getElementById('rule-type') ? document.getElementById('rule-type').value : '';
+  var category  = document.getElementById('rule-category') ? (document.getElementById('rule-category').value || null) : null;
+  var threshold = document.getElementById('rule-threshold') ? (parseFloat(document.getElementById('rule-threshold').value) || null) : null;
+  var period    = document.getElementById('rule-period') ? (document.getElementById('rule-period').value || 'month') : 'month';
+  var action    = document.getElementById('rule-action') ? (document.getElementById('rule-action').value || 'flag') : 'flag';
+  var keywords  = document.getElementById('rule-merchant-keywords') ? (document.getElementById('rule-merchant-keywords').value || null) : null;
+  if (!rule_type) { showToast('Select a rule type', 'error'); return; }
+  if (!['duplicate', 'merchant_block'].includes(rule_type) && !threshold) { showToast('Enter a threshold', 'error'); return; }
+  var body = { rule_type: rule_type, category: category, threshold: threshold, period: period, action: action };
+  if (keywords) body.category = keywords;
+  var data = await api('/api/policy/rules', { method: 'POST', body: JSON.stringify(body) });
+  if (data && data.rule) {
+    document.getElementById('add-rule-form').style.display = 'none';
+    showToast('Policy rule added', 'success');
+    await loadPolicyRules();
+  } else {
+    showToast('Failed: ' + (data && data.error ? data.error : 'unknown'), 'error');
+  }
+}
+
+async function deletePolicyRule(id) {
+  if (!confirm('Delete this policy rule?')) return;
+  await api('/api/policy/rules/' + id, { method: 'DELETE' });
+  showToast('Rule deleted', 'success');
+  await loadPolicyRules();
 }

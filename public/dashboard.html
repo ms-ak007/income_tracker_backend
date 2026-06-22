@@ -44,6 +44,24 @@
       <button class="nav-item" id="nav-sources" onclick="navigate('sources')">
         <span class="nav-icon">💼</span> Source Balances
       </button>
+
+      <span class="sidebar-section-title">Settings</span>
+      <button class="nav-item" id="nav-automations" onclick="navigate('automations')">
+        <span class="nav-icon">🤖</span> Automations
+      </button>
+      <button class="nav-item" id="nav-bank" onclick="navigate('bank')">
+        <span class="nav-icon">🏦</span> Bank Linking
+      </button>
+      <span class="sidebar-section-title">AI &amp; Intelligence</span>
+      <button class="nav-item" id="nav-cashflow" onclick="navigate('cashflow')">
+        <span class="nav-icon">🔮</span> Cash Flow Forecast
+      </button>
+      <button class="nav-item" id="nav-tax" onclick="navigate('tax')">
+        <span class="nav-icon">🧾</span> Tax &amp; Export
+      </button>
+      <button class="nav-item" id="nav-policy" onclick="navigate('policy')">
+        <span class="nav-icon">🛡️</span> Spend Policy
+      </button>
     </nav>
 
     <div class="sidebar-bottom">
@@ -67,10 +85,37 @@
     <div class="topbar">
       <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()" aria-label="Toggle sidebar">☰</button>
       <div class="topbar-greeting">Good <span id="greeting-time"></span>, <span id="topbar-name">there</span> 👋</div>
-      <div class="flex gap-1">
+      <div class="flex gap-1" style="flex:1;justify-content:flex-end;gap:8px">
+        <!-- AI Quick-Log Bar -->
+        <div class="ai-quicklog-wrap" id="ai-quicklog-wrap">
+          <div class="ai-quicklog-bar" id="ai-quicklog-bar">
+            <span class="ai-bar-icon">✨</span>
+            <input type="text" id="ai-quicklog-input" class="ai-bar-input"
+              placeholder="Just say it… &quot;Spent ₹650 on lunch today&quot;"
+              aria-label="AI quick log"
+              onkeydown="handleAiInputKey(event)" />
+            <button class="ai-bar-mic" id="ai-mic-btn" onclick="toggleVoiceInput()" title="Voice input" aria-label="Voice input">🎙</button>
+            <button class="ai-bar-send" onclick="sendAiQuickLog()" id="ai-send-btn" title="Process with AI">↵</button>
+          </div>
+        </div>
         <button class="btn btn-primary btn-sm" onclick="openModal()" id="btn-add-fab-top">
           ＋ Add Entry
         </button>
+      </div>
+    </div>
+
+    <!-- AI Preview Card (shows parsed result before confirming) -->
+    <div class="ai-preview-card glass hidden" id="ai-preview-card">
+      <div class="ai-preview-header">
+        <div class="ai-preview-title">✨ AI Parsed Result</div>
+        <div id="ai-preview-confidence" class="ai-confidence-badge"></div>
+        <button onclick="closeAiPreview()" class="ai-preview-close" aria-label="Close">✕</button>
+      </div>
+      <div class="ai-preview-fields" id="ai-preview-fields"></div>
+      <div class="ai-preview-actions">
+        <button class="btn btn-primary btn-sm" onclick="confirmAiLog()">✅ Add Transaction</button>
+        <button class="btn btn-ghost btn-sm" onclick="editAiLog()">✏️ Edit</button>
+        <button class="btn btn-ghost btn-sm" onclick="closeAiPreview()">✕ Discard</button>
       </div>
     </div>
 
@@ -441,6 +486,134 @@
 
     </section>
 
+    <!-- ── AUTOMATIONS PAGE ───────────────── -->
+    <section class="page-section" id="section-automations">
+      <div class="page-header">
+        <h2>🤖 Automations</h2>
+        <p>Configure automatic monitoring, alerts, and smart transaction import</p>
+      </div>
+
+      <!-- ─── Email Notifications ─── -->
+      <div class="glass auto-panel" id="auto-panel-email">
+        <div class="auto-panel-header">
+          <div class="auto-panel-icon">📧</div>
+          <div>
+            <h3 class="auto-panel-title">Email Notifications</h3>
+            <p class="auto-panel-sub">Receive automated reports and alerts via email</p>
+          </div>
+        </div>
+        <div class="auto-panel-body">
+          <div class="form-group">
+            <label for="notif-email">Notification Email</label>
+            <div style="display:flex;gap:10px">
+              <input type="email" id="notif-email" class="form-control" placeholder="your@email.com" style="flex:1" />
+              <button class="btn btn-ghost btn-sm" onclick="sendTestEmail()" id="btn-test-email">📨 Test</button>
+            </div>
+            <span class="field-hint">Leave empty to use your account email</span>
+          </div>
+          <div class="auto-toggles">
+            <div class="auto-toggle-row">
+              <div>
+                <div class="auto-toggle-label">📊 Monthly Report</div>
+                <div class="auto-toggle-sub">Sent on the 1st of each month with full breakdown</div>
+              </div>
+              <label class="toggle-switch"><input type="checkbox" id="tog-monthly" onchange="saveNotifSettings()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="auto-toggle-row">
+              <div>
+                <div class="auto-toggle-label">☀️ Daily Digest</div>
+                <div class="auto-toggle-sub">Morning summary of yesterday's spending</div>
+              </div>
+              <label class="toggle-switch"><input type="checkbox" id="tog-daily" onchange="saveNotifSettings()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="auto-toggle-row">
+              <div>
+                <div class="auto-toggle-label">🚨 Budget Alerts</div>
+                <div class="auto-toggle-sub">Instant alert when you exceed a spending limit</div>
+              </div>
+              <label class="toggle-switch"><input type="checkbox" id="tog-budget" onchange="saveNotifSettings()"><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+            <button class="btn btn-primary btn-sm" onclick="triggerMonthlyReport()" id="btn-trigger-monthly">▶ Run Monthly Report Now</button>
+            <button class="btn btn-ghost btn-sm" onclick="triggerDailyDigest()" id="btn-trigger-daily">▶ Run Daily Digest Now</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── Budget Caps ─── -->
+      <div class="glass auto-panel">
+        <div class="auto-panel-header">
+          <div class="auto-panel-icon">💰</div>
+          <div>
+            <h3 class="auto-panel-title">Budget Caps</h3>
+            <p class="auto-panel-sub">Get alerted when you exceed spending limits (requires Budget Alerts enabled above)</p>
+          </div>
+        </div>
+        <div class="auto-panel-body">
+          <div class="form-group">
+            <label for="global-budget">Global Monthly Expense Limit (₹)</label>
+            <div style="display:flex;gap:10px">
+              <input type="number" id="global-budget" class="form-control" placeholder="e.g. 30000" min="0" style="flex:1" />
+              <button class="btn btn-primary btn-sm" onclick="saveGlobalBudget()">Save</button>
+            </div>
+            <span class="field-hint">Alert fires when total monthly expenses exceed this amount</span>
+          </div>
+          <div style="margin-top:20px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <h4 style="margin:0;font-size:0.9rem;color:var(--text-secondary)">Per-Category Limits</h4>
+              <button class="btn btn-ghost btn-sm" onclick="showAddBudgetForm()">＋ Add Cap</button>
+            </div>
+            <div id="add-budget-form" style="display:none;background:rgba(99,102,241,.08);border-radius:10px;padding:16px;margin-bottom:14px">
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <select id="budget-cat" class="form-control" style="flex:1;min-width:140px"></select>
+                <input type="number" id="budget-amt" class="form-control" placeholder="Amount (₹)" min="1" style="flex:1;min-width:100px" />
+                <button class="btn btn-primary btn-sm" onclick="addBudgetCap()">Add</button>
+                <button class="btn btn-ghost btn-sm" onclick="document.getElementById('add-budget-form').style.display='none'">Cancel</button>
+              </div>
+            </div>
+            <div id="budget-caps-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── Recurring Transactions ─── -->
+      <div class="glass auto-panel">
+        <div class="auto-panel-header">
+          <div class="auto-panel-icon">🔁</div>
+          <div>
+            <h3 class="auto-panel-title">Recurring Transactions</h3>
+            <p class="auto-panel-sub">Auto-insert salary, rent, subscriptions on a set day each month</p>
+          </div>
+        </div>
+        <div class="auto-panel-body">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+            <button class="btn btn-primary btn-sm" onclick="showAddRecurringForm()">＋ Add Recurring</button>
+          </div>
+          <div id="add-recurring-form" style="display:none;background:rgba(99,102,241,.08);border-radius:10px;padding:16px;margin-bottom:14px">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:10px">
+              <select id="rec-type" class="form-control" onchange="updateRecCategoryOptions()">
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+              </select>
+              <select id="rec-cat" class="form-control"></select>
+              <input type="number" id="rec-amt" class="form-control" placeholder="Amount (₹)" min="1" />
+              <input type="text" id="rec-desc" class="form-control" placeholder="Description" />
+              <input type="number" id="rec-day" class="form-control" placeholder="Day of month (1-28)" min="1" max="28" value="1" />
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary btn-sm" onclick="addRecurring()">Save</button>
+              <button class="btn btn-ghost btn-sm" onclick="document.getElementById('add-recurring-form').style.display='none'">Cancel</button>
+            </div>
+          </div>
+          <div id="recurring-list"></div>
+        </div>
+      </div>
+
+
+
+    </section>
+
   </div><!-- /main-content -->
 
 </div><!-- /dashboard-layout -->
@@ -507,6 +680,505 @@
 
 <!-- Toast container -->
 <div id="toast-container" aria-live="polite"></div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     RECEIPT SCANNER MODAL
+     ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="receipt-modal-overlay" onclick="closeReceiptModal()" role="dialog" aria-modal="true" aria-label="Receipt Scanner">
+  <div class="modal-card" onclick="event.stopPropagation()" style="max-width:560px">
+    <div class="modal-header">
+      <h3 class="modal-title">📷 Scan Receipt</h3>
+      <button class="modal-close" onclick="closeReceiptModal()" aria-label="Close">✕</button>
+    </div>
+    <div style="padding:24px">
+      <!-- Drop zone -->
+      <div class="receipt-dropzone" id="receipt-dropzone"
+        ondragover="event.preventDefault()" ondrop="handleReceiptDrop(event)"
+        onclick="document.getElementById('receipt-file-input').click()">
+        <div class="dropzone-icon" id="dropzone-icon">📄</div>
+        <div class="dropzone-text" id="dropzone-text">Drop a receipt image here<br><small>or click to select (JPG, PNG, WebP)</small></div>
+        <input type="file" id="receipt-file-input" accept="image/*" style="display:none" onchange="handleReceiptFile(event)">
+      </div>
+
+      <!-- Scanning state -->
+      <div id="receipt-scanning" class="hidden" style="text-align:center;padding:24px">
+        <div class="spinner" style="width:36px;height:36px;margin:0 auto 12px;border-width:3px"></div>
+        <p style="color:var(--text-secondary)">Analysing receipt with AI…</p>
+      </div>
+
+      <!-- Results -->
+      <div id="receipt-results" class="hidden">
+        <div class="receipt-result-header">
+          <div id="receipt-vendor" style="font-size:1.1rem;font-weight:700;margin-bottom:4px"></div>
+          <div id="receipt-date-category" style="font-size:0.82rem;color:var(--text-muted)"></div>
+        </div>
+
+        <!-- Line items table -->
+        <div class="table-wrapper" style="margin:16px 0" id="receipt-items-wrap">
+          <table>
+            <thead><tr>
+              <th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th>
+            </tr></thead>
+            <tbody id="receipt-items-tbody"></tbody>
+          </table>
+        </div>
+
+        <!-- Totals -->
+        <div style="display:flex;flex-direction:column;gap:6px;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;font-size:0.88rem">
+          <div class="flex-between"><span style="color:var(--text-muted)">Tax / GST</span><span id="receipt-tax">—</span></div>
+          <div class="flex-between"><span style="font-weight:700">Total Amount</span><span id="receipt-total" style="font-size:1.1rem;font-weight:800;color:var(--income-light)"></span></div>
+        </div>
+
+        <div style="margin-top:16px;display:flex;gap:10px">
+          <button class="btn btn-primary btn-sm" style="flex:1" onclick="confirmReceiptTransaction()">✅ Add as Transaction</button>
+          <button class="btn btn-ghost btn-sm" onclick="rescanReceipt()">🔄 Rescan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     CASH FLOW PAGE
+     ═══════════════════════════════════════════════════════════ -->
+<section class="page-section" id="section-cashflow" role="main">
+  <div class="page-header">
+    <h2>🔮 Cash Flow Forecast</h2>
+    <p>AI-powered 6-month prediction based on your transaction history.</p>
+  </div>
+
+  <div class="summary-grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="glass summary-card" style="padding:20px">
+      <div class="summary-card-label"><span class="dot" style="background:var(--income)"></span>Avg Monthly Income</div>
+      <div class="summary-card-value" id="fc-avg-income" style="font-size:1.5rem;color:var(--income-light)">—</div>
+    </div>
+    <div class="glass summary-card" style="padding:20px">
+      <div class="summary-card-label"><span class="dot" style="background:var(--expense)"></span>Avg Monthly Expense</div>
+      <div class="summary-card-value" id="fc-avg-expense" style="font-size:1.5rem;color:var(--expense-light)">—</div>
+    </div>
+    <div class="glass summary-card" style="padding:20px">
+      <div class="summary-card-label"><span class="dot" style="background:var(--primary)"></span>Avg Savings</div>
+      <div class="summary-card-value" id="fc-avg-savings" style="font-size:1.5rem">—</div>
+    </div>
+    <div class="glass summary-card" style="padding:20px">
+      <div class="summary-card-label">📊 Data Quality</div>
+      <div class="summary-card-value" id="fc-data-quality" style="font-size:1rem;padding-top:4px">—</div>
+    </div>
+  </div>
+
+  <!-- Forecast chart -->
+  <div class="glass chart-card" style="margin-bottom:20px">
+    <div class="chart-card-header">
+      <div class="chart-card-title">📈 6-Month Forecast vs History</div>
+      <div style="display:flex;gap:8px">
+        <span style="font-size:0.78rem;color:var(--text-muted)" id="fc-income-trend"></span>
+        <span style="font-size:0.78rem;color:var(--text-muted)" id="fc-expense-trend"></span>
+      </div>
+    </div>
+    <div class="chart-container" style="height:280px">
+      <canvas id="forecastChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Forecast table -->
+  <div class="glass" style="margin-bottom:20px">
+    <div class="auto-panel-header">
+      <div class="auto-panel-icon">📅</div>
+      <div><div class="auto-panel-title">Monthly Forecast Breakdown</div>
+        <p class="auto-panel-sub">Predicted income, expense, and cumulative balance</p></div>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr>
+          <th>Month</th><th>Predicted Income</th><th>Predicted Expense</th>
+          <th>Net</th><th>Est. Balance</th><th>Confidence</th>
+        </tr></thead>
+        <tbody id="forecast-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Idle Cash Alerts -->
+  <div id="idle-cash-section" class="hidden">
+    <div class="page-header" style="margin-top:8px">
+      <h2 style="font-size:1.2rem">💡 Idle Cash Opportunities</h2>
+    </div>
+    <div id="idle-cash-cards"></div>
+  </div>
+
+  <!-- Subscription waste -->
+  <div class="glass auto-panel" style="margin-top:20px">
+    <div class="auto-panel-header">
+      <div class="auto-panel-icon">🔍</div>
+      <div>
+        <div class="auto-panel-title">Subscription &amp; Waste Scan</div>
+        <p class="auto-panel-sub">AI detection of recurring charges and potential savings</p>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="runWasteScan()" id="btn-waste-scan">🔍 Scan Now</button>
+    </div>
+    <div class="auto-panel-body" id="waste-scan-body">
+      <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:0.85rem">Click "Scan Now" to analyse your spending patterns.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     TAX & EXPORT PAGE
+     ═══════════════════════════════════════════════════════════ -->
+<section class="page-section" id="section-tax" role="main">
+  <div class="page-header">
+    <h2>🧾 Tax &amp; Export</h2>
+    <p>Deduction analysis, audit trails, and accounting exports for your financial year.</p>
+  </div>
+
+  <!-- FY Selector -->
+  <div class="glass auto-panel" style="margin-bottom:20px">
+    <div class="auto-panel-header">
+      <div class="auto-panel-icon">📅</div>
+      <div><div class="auto-panel-title">Financial Year</div>
+        <p class="auto-panel-sub">Indian FY: April to March</p></div>
+    </div>
+    <div class="auto-panel-body">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <select class="form-control" id="tax-fy-select" style="width:auto;min-width:160px" onchange="loadTaxReport()">
+          <option value="">Select Financial Year…</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="loadTaxReport()" id="btn-load-tax">📊 Load Report</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tax summary cards -->
+  <div id="tax-summary-section" class="hidden">
+    <div class="summary-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+      <div class="glass summary-card" style="padding:20px">
+        <div class="summary-card-label"><span class="dot" style="background:var(--income)"></span>Total Income</div>
+        <div class="summary-card-value" id="tax-total-income" style="font-size:1.4rem;color:var(--income-light)">—</div>
+      </div>
+      <div class="glass summary-card" style="padding:20px">
+        <div class="summary-card-label"><span class="dot" style="background:var(--primary)"></span>Deductible Total</div>
+        <div class="summary-card-value" id="tax-deductible-total" style="font-size:1.4rem;color:var(--primary-light)">—</div>
+      </div>
+      <div class="glass summary-card" style="padding:20px">
+        <div class="summary-card-label"><span class="dot" style="background:var(--income)"></span>Est. Tax Saved</div>
+        <div class="summary-card-value" id="tax-saved" style="font-size:1.4rem;color:var(--income-light)">—</div>
+        <div class="summary-card-sub">At 30% bracket</div>
+      </div>
+      <div class="glass summary-card" style="padding:20px">
+        <div class="summary-card-label">📋 Transactions</div>
+        <div class="summary-card-value" id="tax-tx-count" style="font-size:1.4rem">—</div>
+      </div>
+    </div>
+
+    <!-- Section breakdown -->
+    <div class="glass auto-panel" style="margin-bottom:20px">
+      <div class="auto-panel-header">
+        <div class="auto-panel-icon">📋</div>
+        <div><div class="auto-panel-title">Deductions by Section</div>
+          <p class="auto-panel-sub">80C, 80D, HRA, and other IT Act sections</p></div>
+      </div>
+      <div class="auto-panel-body" id="tax-sections-body"></div>
+    </div>
+
+    <!-- Deductible transactions -->
+    <div class="glass auto-panel" style="margin-bottom:20px">
+      <div class="auto-panel-header">
+        <div class="auto-panel-icon">✅</div>
+        <div><div class="auto-panel-title">Deductible Transactions</div>
+          <p class="auto-panel-sub">Expenses that qualify for tax deduction</p></div>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Section</th><th>Amount</th></tr></thead>
+          <tbody id="tax-deductible-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Accounting Export -->
+  <div class="glass auto-panel">
+    <div class="auto-panel-header">
+      <div class="auto-panel-icon">📤</div>
+      <div><div class="auto-panel-title">Accounting Export</div>
+        <p class="auto-panel-sub">Download in standard formats for any accounting tool</p></div>
+    </div>
+    <div class="auto-panel-body">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+        <select class="form-control" id="export-year" style="width:auto;min-width:120px">
+          <option value="">All time</option>
+        </select>
+        <select class="form-control" id="export-month" style="width:auto;min-width:140px">
+          <option value="">All months</option>
+          <option value="01">January</option><option value="02">February</option>
+          <option value="03">March</option><option value="04">April</option>
+          <option value="05">May</option><option value="06">June</option>
+          <option value="07">July</option><option value="08">August</option>
+          <option value="09">September</option><option value="10">October</option>
+          <option value="11">November</option><option value="12">December</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
+        <button class="btn btn-ghost" onclick="exportData('tally')" id="btn-export-tally">
+          <span>📊</span> Tally XML
+        </button>
+        <button class="btn btn-ghost" onclick="exportData('quickbooks')" id="btn-export-qb">
+          <span>📗</span> QuickBooks IIF
+        </button>
+        <button class="btn btn-ghost" onclick="exportData('zoho')" id="btn-export-zoho">
+          <span>📘</span> Zoho Books CSV
+        </button>
+        <button class="btn btn-ghost" onclick="exportData('csv')" id="btn-export-csv">
+          <span>📋</span> Generic CSV
+        </button>
+        <button class="btn btn-ghost" onclick="exportData('json')" id="btn-export-json">
+          <span>🔧</span> JSON API Export
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SPEND POLICY PAGE
+     ═══════════════════════════════════════════════════════════ -->
+<section class="page-section" id="section-policy" role="main">
+  <div class="page-header">
+    <h2>🛡️ Spend Policy</h2>
+    <p>Smart rules that automatically flag unusual or out-of-policy transactions.</p>
+  </div>
+
+  <!-- Active Flags -->
+  <div class="glass auto-panel" style="margin-bottom:20px">
+    <div class="auto-panel-header">
+      <div class="auto-panel-icon">🚨</div>
+      <div>
+        <div class="auto-panel-title">Active Flags <span id="flags-count-badge" style="font-size:0.8rem;color:var(--expense-light)"></span></div>
+        <p class="auto-panel-sub">Transactions that triggered a policy rule</p>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="loadPolicyPage()">↺ Refresh</button>
+    </div>
+    <div class="auto-panel-body" id="policy-flags-body">
+      <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85rem">No flags yet.</div>
+    </div>
+  </div>
+
+  <!-- Policy Rules -->
+  <div class="glass auto-panel">
+    <div class="auto-panel-header">
+      <div class="auto-panel-icon">📜</div>
+      <div><div class="auto-panel-title">Policy Rules</div>
+        <p class="auto-panel-sub">Define your spending rules and enforcement actions</p></div>
+      <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="showAddRuleForm()">＋ Add Rule</button>
+    </div>
+    <div class="auto-panel-body">
+      <!-- Add rule form -->
+      <div id="add-rule-form" style="display:none;background:rgba(255,255,255,0.03);border-radius:10px;padding:16px;margin-bottom:16px;border:1px solid var(--border)">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="form-group">
+            <label>Rule Type</label>
+            <select class="form-control" id="rule-type" onchange="updateRuleForm()">
+              <option value="category_cap">Single Transaction Cap</option>
+              <option value="monthly_cap">Monthly Category Cap</option>
+              <option value="duplicate">Duplicate Detection</option>
+              <option value="frequency">Frequency Limit</option>
+              <option value="merchant_block">Merchant Blocklist</option>
+            </select>
+          </div>
+          <div class="form-group" id="rule-category-group">
+            <label>Category <small style="color:var(--text-muted)">(optional)</small></label>
+            <select class="form-control" id="rule-category">
+              <option value="">All categories</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="form-group" id="rule-threshold-group">
+            <label id="rule-threshold-label">Amount (₹)</label>
+            <input class="form-control" type="number" id="rule-threshold" placeholder="e.g. 3000" min="1">
+          </div>
+          <div class="form-group" id="rule-period-group">
+            <label>Period</label>
+            <select class="form-control" id="rule-period">
+              <option value="day">Day</option>
+              <option value="week">Week</option>
+              <option value="month" selected>Month</option>
+              <option value="transaction">Per Transaction</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Action</label>
+            <select class="form-control" id="rule-action">
+              <option value="flag">🚩 Flag for review</option>
+              <option value="notify">📧 Email notify</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" id="rule-merchant-group" style="display:none;margin-bottom:12px">
+          <label>Blocked keywords <small>(comma-separated)</small></label>
+          <input class="form-control" type="text" id="rule-merchant-keywords" placeholder="e.g. gambling, casino, betting">
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-primary btn-sm" onclick="addPolicyRule()">Save Rule</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('add-rule-form').style.display='none'">Cancel</button>
+        </div>
+      </div>
+      <!-- Rules list -->
+      <div id="policy-rules-list"></div>
+    </div>
+  </div>
+</section>
+
+    <!-- ── BANK LINKING PAGE ───────────────── -->
+    <section class="page-section" id="section-bank" role="main">
+      <div class="page-header">
+        <h2>🏦 Bank Accounts Linking</h2>
+        <p>Connect your bank accounts to automatically sync transactions or upload monthly statements.</p>
+      </div>
+
+      <!-- Linked Accounts & Supported Banks -->
+      <div class="glass auto-panel" style="margin-bottom: 20px;">
+        <div class="auto-panel-header">
+          <div class="auto-panel-icon">🏢</div>
+          <div>
+            <h3 class="auto-panel-title">Supported Banks &amp; Status</h3>
+            <p class="auto-panel-sub">FinFlow monitors email alerts forwarded to your linked Gmail account</p>
+          </div>
+        </div>
+        <div class="auto-panel-body">
+          <div class="bank-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-bottom: 16px;">
+            <div class="bank-card glass" id="bank-card-hdfc" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
+              <div style="font-size: 1.8rem; margin-bottom: 6px;">🏦</div>
+              <div style="font-weight: 700; font-size: 0.85rem;">HDFC Bank</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;" id="bank-status-hdfc">Ready</div>
+            </div>
+            <div class="bank-card glass" id="bank-card-sbi" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
+              <div style="font-size: 1.8rem; margin-bottom: 6px;">🏛️</div>
+              <div style="font-weight: 700; font-size: 0.85rem;">SBI</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;" id="bank-status-sbi">Ready</div>
+            </div>
+            <div class="bank-card glass" id="bank-card-icici" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
+              <div style="font-size: 1.8rem; margin-bottom: 6px;">💰</div>
+              <div style="font-weight: 700; font-size: 0.85rem;">ICICI Bank</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;" id="bank-status-icici">Ready</div>
+            </div>
+            <div class="bank-card glass" id="bank-card-axis" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
+              <div style="font-size: 1.8rem; margin-bottom: 6px;">💳</div>
+              <div style="font-weight: 700; font-size: 0.85rem;">Axis Bank</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;" id="bank-status-axis">Ready</div>
+            </div>
+            <div class="bank-card glass" id="bank-card-kotak" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
+              <div style="font-size: 1.8rem; margin-bottom: 6px;">🔓</div>
+              <div style="font-weight: 700; font-size: 0.85rem;">Kotak Bank</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;" id="bank-status-kotak">Ready</div>
+            </div>
+            <div class="bank-card glass" id="bank-card-paytm" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
+              <div style="font-size: 1.8rem; margin-bottom: 6px;">📱</div>
+              <div style="font-weight: 700; font-size: 0.85rem;">Paytm / UPI</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;" id="bank-status-paytm">Ready</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gmail IMAP Credentials Card -->
+      <div class="glass auto-panel" style="margin-bottom: 20px;">
+        <div class="auto-panel-header">
+          <div class="auto-panel-icon">🔑</div>
+          <div>
+            <h3 class="auto-panel-title">Automated Gmail IMAP Sync</h3>
+            <p class="auto-panel-sub">Sync transactions automatically from bank SMS/email alerts via Gmail IMAP</p>
+          </div>
+        </div>
+        <div class="auto-panel-body">
+          <div class="auto-toggle-row" style="margin-bottom: 16px;">
+            <div>
+              <div class="auto-toggle-label">🏦 Enable Email Parsing Integration</div>
+              <div class="auto-toggle-sub">Automatically check inbox every 15 minutes for bank alerts</div>
+            </div>
+            <label class="toggle-switch"><input type="checkbox" id="bank-tog-active" onchange="saveBankPageSettings()"><span class="toggle-slider"></span></label>
+          </div>
+          
+          <div class="auto-info-box" style="margin-bottom: 16px;">
+            <strong>📋 Setup Guide:</strong>
+            <ol style="margin: 8px 0 0 16px; padding: 0; font-size: 0.83rem; color: var(--text-secondary); line-height: 1.6;">
+              <li>Enable IMAP in Gmail Settings → Forwarding &amp; POP/IMAP.</li>
+              <li>Create an <strong>App Password</strong> in Google Account Security settings.</li>
+              <li>Input Gmail address and App Password below, then click Save and Link.</li>
+            </ol>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+            <div class="form-group">
+              <label for="bank-imap-user">Gmail Address</label>
+              <input type="email" id="bank-imap-user" class="form-control" placeholder="bank-alerts@gmail.com" />
+            </div>
+            <div class="form-group">
+              <label for="bank-imap-pass">Gmail App Password</label>
+              <input type="password" id="bank-imap-pass" class="form-control" placeholder="xxxx xxxx xxxx xxxx" />
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-primary btn-sm" onclick="saveBankPageSettings(true)">💾 Save &amp; Link</button>
+            <button class="btn btn-ghost btn-sm" onclick="triggerBankPagePoller()" id="btn-bank-poll-now">▶ Sync Now</button>
+          </div>
+
+          <div id="bank-page-status" style="margin-top: 12px; font-size: 0.83rem; color: var(--text-muted)"></div>
+        </div>
+      </div>
+
+      <!-- Manual Bank Statement CSV Upload -->
+      <div class="glass auto-panel">
+        <div class="auto-panel-header">
+          <div class="auto-panel-icon">📤</div>
+          <div>
+            <h3 class="auto-panel-title">Manual Bank Statement Import</h3>
+            <p class="auto-panel-sub">Import transactions by uploading a CSV bank statement (Date, Narration/Description, Amount columns)</p>
+          </div>
+        </div>
+        <div class="auto-panel-body">
+          <div class="receipt-dropzone" id="bank-statement-dropzone"
+            ondragover="event.preventDefault()" ondrop="handleStatementDrop(event)"
+            onclick="document.getElementById('statement-file-input').click()"
+            style="border: 2px dashed rgba(99, 102, 241, 0.35); padding: 30px; text-align: center; border-radius: 12px; cursor: pointer; transition: all 0.3s; background: rgba(99, 102, 241, 0.02); margin-bottom: 12px;">
+            <div class="dropzone-icon" style="font-size: 2.2rem; margin-bottom: 8px;">📊</div>
+            <div class="dropzone-text">Drop your bank statement CSV here<br><small>or click to select file</small></div>
+            <input type="file" id="statement-file-input" accept=".csv" style="display: none;" onchange="handleStatementFile(event)">
+          </div>
+
+          <div id="statement-importing" class="hidden" style="text-align: center; padding: 24px;">
+            <div class="spinner" style="width: 32px; height: 32px; margin: 0 auto 12px; border-width: 3px;"></div>
+            <p style="color: var(--text-secondary)">Uploading and parsing statement…</p>
+          </div>
+
+          <div id="statement-import-results" class="hidden" style="margin-top: 20px; background: rgba(255,255,255,0.02); border-radius: 8px; padding: 16px; border: 1px solid var(--border)">
+            <h4 style="margin: 0 0 12px; font-size: 0.95rem; display: flex; align-items: center; justify-content: space-between;">
+              <span>📊 Parsed Transactions</span>
+              <span style="color: var(--income-light); font-size: 0.85rem;" id="statement-success-count">0 ready to import</span>
+            </h4>
+            <div style="overflow-x: auto; max-height: 250px; margin-bottom: 12px;">
+              <table style="font-size: 0.8rem; margin: 0; width: 100%; border-collapse: collapse;">
+                <thead>
+                  <tr style="border-bottom: 1px solid var(--border);">
+                    <th style="text-align: left; padding: 8px;">Date</th>
+                    <th style="text-align: left; padding: 8px;">Description</th>
+                    <th style="text-align: left; padding: 8px;">Type</th>
+                    <th style="text-align: left; padding: 8px;">Category</th>
+                    <th style="text-align: right; padding: 8px;">Amount</th>
+                  </tr>
+                </thead>
+                <tbody id="statement-tbody"></tbody>
+              </table>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 14px;">
+              <button class="btn btn-primary btn-sm" onclick="confirmImportedStatement()">✅ Save All Transactions</button>
+              <button class="btn btn-ghost btn-sm" onclick="resetStatementUpload()">✕ Discard</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
 <script src="/js/dashboard.js"></script>
 </body>
