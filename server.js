@@ -918,7 +918,9 @@ app.get('*',           (req, res) => res.sendFile(path.join(__dirname, 'public',
 // Start
 initDb().then(() => {
   startScheduler();
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
+  console.log(`FinFlow running on port ${PORT}`);
+});
     console.log('');
     console.log('  FinFlow running on port ' + PORT);
     console.log('  Open: http://localhost:' + PORT);
