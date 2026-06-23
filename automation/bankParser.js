@@ -118,19 +118,19 @@ function guessCategory(description, type) {
     const d = (description || '').toLowerCase();
     if (d.includes('salary') || d.includes('payroll')) return 'Salary';
     if (d.includes('freelance') || d.includes('invoice'))  return 'Freelance';
-    if (d.includes('interest') || d.includes('fd'))        return 'Interest';
+    if (d.includes('interest') || d.includes('fd'))        return 'Other Income';
     return 'Other Income';
   }
   const d = (description || '').toLowerCase();
-  if (d.includes('swiggy') || d.includes('zomato') || d.includes('food') || d.includes('restaurant')) return 'Food';
-  if (d.includes('uber') || d.includes('ola') || d.includes('metro') || d.includes('train'))          return 'Transport';
+  if (d.includes('swiggy') || d.includes('zomato') || d.includes('food') || d.includes('restaurant')) return 'Food & Dining';
+  if (d.includes('uber') || d.includes('ola') || d.includes('metro') || d.includes('train'))          return 'Transportation';
   if (d.includes('amazon') || d.includes('flipkart') || d.includes('myntra'))                         return 'Shopping';
   if (d.includes('netflix') || d.includes('hotstar') || d.includes('spotify') || d.includes('prime')) return 'Entertainment';
   if (d.includes('electricity') || d.includes('water') || d.includes('gas') || d.includes('bill'))    return 'Utilities';
-  if (d.includes('rent') || d.includes('maintenance'))                                                  return 'Rent';
+  if (d.includes('rent') || d.includes('maintenance'))                                                  return 'Rent / EMI';
   if (d.includes('hospital') || d.includes('pharmacy') || d.includes('doctor'))                       return 'Healthcare';
   if (d.includes('school') || d.includes('college') || d.includes('fee'))                             return 'Education';
-  return 'Other';
+  return 'Other Expense';
 }
 
 // ── Parse a message body for a known bank pattern ─────────────────────────────

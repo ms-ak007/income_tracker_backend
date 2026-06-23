@@ -916,13 +916,14 @@ app.post('/api/bank/import-statement', requireAuth, statementUpload.single('stat
       
       const hasDate = cells.some(c => c.includes('date'));
       const hasDesc = cells.some(c => c.includes('desc') || c.includes('narr') || c.includes('particular') || c.includes('remark') || c.includes('info'));
-      const hasAmount = cells.some(c => c.includes('amount') || c.includes('value') || c.includes('debit') || c.includes('credit') || c.includes('withdrawal') || c.includes('deposit') || c.includes('rs') || c.includes('inr'));
+      const hasAmount = cells.some(c => c.includes('amount') || (c.includes('value') && !c.includes('date')) || c.includes('debit') || c.includes('credit') || c.includes('withdrawal') || c.includes('deposit') || c.includes('rs') || c.includes('inr'));
 
       if (hasDate && (hasDesc || hasAmount)) {
         headerIdx = i;
         const headers = cells;
         
-        dateIdx = headers.findIndex(h => h.includes('txn date') || h.includes('tran date') || h.includes('transaction date'));
+        dateIdx = headers.findIndex(h => h === 'date' || h === 'txn date' || h === 'tran date' || h === 'transaction date' || h === 'tx date');
+        if (dateIdx === -1) dateIdx = headers.findIndex(h => h.includes('date') && !h.includes('value'));
         if (dateIdx === -1) dateIdx = headers.findIndex(h => h.includes('date'));
         
         descIdx = headers.findIndex(h => h.includes('particular') || h.includes('narr') || h.includes('desc') || h.includes('remark') || h.includes('info'));
@@ -930,7 +931,7 @@ app.post('/api/bank/import-statement', requireAuth, statementUpload.single('stat
         debitIdx = headers.findIndex(h => (h === 'dr' || h.includes('debit') || h.includes('withdrawal') || h.includes('payment') || h.includes('(dr)')) && !h.includes('balance'));
         creditIdx = headers.findIndex(h => (h === 'cr' || h.includes('credit') || h.includes('deposit') || h.includes('receipt') || h.includes('(cr)')) && !h.includes('balance'));
         
-        amountIdx = headers.findIndex(h => (h.includes('amount') || h.includes('value') || h.includes('rs') || h.includes('inr')) && !h.includes('balance'));
+        amountIdx = headers.findIndex(h => (h.includes('amount') || (h.includes('value') && !h.includes('date')) || h.includes('rs') || h.includes('inr')) && !h.includes('balance'));
         
         typeIdx = headers.findIndex(h => h.includes('type') || h.includes('cr/dr') || h.includes('d/c') || h.includes('credit/debit') || h.includes('transaction type'));
         
@@ -941,11 +942,15 @@ app.post('/api/bank/import-statement', requireAuth, statementUpload.single('stat
     if (dateIdx === -1) {
       headerIdx = 0;
       const headers = lines[0].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(h => h.replace(/^["']|["']$/g, '').trim().toLowerCase());
-      dateIdx = headers.findIndex(h => h.includes('date'));
+      
+      dateIdx = headers.findIndex(h => h === 'date' || h === 'txn date' || h === 'tran date' || h === 'transaction date' || h === 'tx date');
+      if (dateIdx === -1) dateIdx = headers.findIndex(h => h.includes('date') && !h.includes('value'));
+      if (dateIdx === -1) dateIdx = headers.findIndex(h => h.includes('date'));
+
       descIdx = headers.findIndex(h => h.includes('desc') || h.includes('narr') || h.includes('particular') || h.includes('info') || h.includes('remark'));
       debitIdx = headers.findIndex(h => (h === 'dr' || h.includes('debit') || h.includes('withdrawal') || h.includes('(dr)')) && !h.includes('balance'));
       creditIdx = headers.findIndex(h => (h === 'cr' || h.includes('credit') || h.includes('deposit') || h.includes('(cr)')) && !h.includes('balance'));
-      amountIdx = headers.findIndex(h => (h.includes('amount') || h.includes('value') || h.includes('rs') || h.includes('inr')) && !h.includes('balance'));
+      amountIdx = headers.findIndex(h => (h.includes('amount') || (h.includes('value') && !h.includes('date')) || h.includes('rs') || h.includes('inr')) && !h.includes('balance'));
       typeIdx = headers.findIndex(h => h.includes('type') || h.includes('cr/dr') || h.includes('d/c') || h.includes('credit/debit'));
     }
 
@@ -962,9 +967,10 @@ app.post('/api/bank/import-statement', requireAuth, statementUpload.single('stat
       const row = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.replace(/^["']|["']$/g, '').trim());
       if (row.length <= Math.max(dateIdx, descIdx)) continue;
 
-      let dateVal = row[dateIdx] || '';
-      let descVal = row[descIdx] || 'Bank Transaction';
-      let cleanDate = parseRobustDate(dateVal) || todayStr;
+      const dateVal = row[dateIdx] || '';
+      const descVal = row[descIdx] || 'Bank Transaction';
+      let cleanDate = parseRobustDate(dateVal);
+      if (!cleanDate) continue;
       
       let amountVal = 0;
       let typeVal = 'expense';

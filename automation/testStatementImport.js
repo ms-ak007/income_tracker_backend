@@ -69,7 +69,7 @@ async function runTest() {
 
   // Verify Swiggy
   const swiggy = importResult.transactions.find(t => t.description.includes('SWIGGY'));
-  if (!swiggy || swiggy.amount !== 520.50 || swiggy.type !== 'expense' || swiggy.category !== 'Food') {
+  if (!swiggy || swiggy.amount !== 520.50 || swiggy.type !== 'expense' || swiggy.category !== 'Food & Dining') {
     console.error('SWIGGY transaction parsed incorrectly:', swiggy);
     process.exit(1);
   }
@@ -83,7 +83,7 @@ async function runTest() {
 
   // Verify Zomato
   const zomato = importResult.transactions.find(t => t.description.includes('ZOMATO'));
-  if (!zomato || zomato.amount !== 150.00 || zomato.type !== 'expense' || zomato.category !== 'Food') {
+  if (!zomato || zomato.amount !== 150.00 || zomato.type !== 'expense' || zomato.category !== 'Food & Dining') {
     console.error('ZOMATO transaction parsed incorrectly:', zomato);
     process.exit(1);
   }

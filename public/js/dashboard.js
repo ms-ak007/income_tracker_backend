@@ -1758,7 +1758,7 @@ async function processStatementFile(file) {
       tbody.innerHTML = _importedTransactions.map(t => {
         const netColor = t.type === 'income' ? 'var(--income-light)' : 'var(--expense-light)';
         return `<tr style="border-bottom: 1px solid var(--border); font-size: 0.75rem;">
-          <td style="padding: 6px 8px;">${t.date}</td>
+          <td style="padding: 6px 8px;">${formatDate(t.date)}</td>
           <td style="padding: 6px 8px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escHtml(t.description)}</td>
           <td style="padding: 6px 8px;"><span class="badge badge-${t.type}">${t.type}</span></td>
           <td style="padding: 6px 8px;"><span class="badge badge-${t.type}">${escHtml(t.category)}</span></td>
@@ -2027,7 +2027,7 @@ function showReceiptResults(result) {
   var taxEl    = document.getElementById('receipt-tax');
   var totalEl  = document.getElementById('receipt-total');
   if (vendorEl) vendorEl.textContent = result.vendor || 'Unknown Vendor';
-  if (dcEl)     dcEl.textContent = (result.date || '—') + ' · ' + (result.category || 'Other Expense');
+  if (dcEl)     dcEl.textContent = (result.date ? formatDate(result.date) : '—') + ' · ' + (result.category || 'Other Expense');
   if (taxEl)    taxEl.textContent = result.tax > 0 ? '₹' + formatNum(result.tax) : '—';
   if (totalEl)  totalEl.textContent = '₹' + formatNum(result.total || 0);
 
