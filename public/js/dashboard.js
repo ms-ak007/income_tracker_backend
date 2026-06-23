@@ -1016,13 +1016,50 @@ function currentMonthStr() {
 
 function formatMonthLabel(ym) {
   if (!ym) return '';
-  const [y, m] = ym.split('-');
-  return new Date(+y, +m - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+  const parts = String(ym).trim().split('-');
+  if (parts.length < 2) {
+    const d = new Date(ym);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+    }
+    return ym;
+  }
+  const [y, m] = parts;
+  const d = new Date(+y, +m - 1, 1);
+  if (isNaN(d.getTime())) return ym;
+  return d.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
 }
 
 function formatDate(dateStr) {
   if (!dateStr) return '';
-  const d = new Date(dateStr + 'T00:00:00');
+  let s = String(dateStr).trim();
+  let d;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    d = new Date(s.slice(0, 10) + 'T00:00:00');
+  } else {
+    d = new Date(s);
+  }
+  if (isNaN(d.getTime())) {
+    const parts = s.split(/[-/]/);
+    if (parts.length === 3) {
+      if (parts[2].length === 4) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+        const testD = new Date(year, month, day);
+        if (!isNaN(testD.getTime())) d = testD;
+      } else if (parts[0].length === 4) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        const testD = new Date(year, month, day);
+        if (!isNaN(testD.getTime())) d = testD;
+      }
+    }
+  }
+  if (isNaN(d.getTime())) {
+    return s;
+  }
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 

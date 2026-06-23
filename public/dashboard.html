@@ -614,130 +614,6 @@
 
     </section>
 
-  </div><!-- /main-content -->
-
-</div><!-- /dashboard-layout -->
-
-<!-- ── FAB Button ───────────────────────────── -->
-<button class="fab" id="fab-btn" onclick="openModal()" title="Add transaction" aria-label="Add new transaction">＋</button>
-
-<!-- ── Add Transaction Modal ────────────────── -->
-<div class="modal-overlay" id="modal-overlay" onclick="closeModalOnOverlay(event)">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-    <div class="modal-header">
-      <h3 id="modal-title">Add Transaction</h3>
-      <button class="modal-close" onclick="closeModal()" aria-label="Close modal">✕</button>
-    </div>
-
-    <!-- Type toggle -->
-    <div class="type-toggle" style="margin-bottom:24px">
-      <button class="type-btn active-income" id="type-income-btn" onclick="setType('income')">💚 Income</button>
-      <button class="type-btn" id="type-expense-btn" onclick="setType('expense')">🔴 Expense</button>
-    </div>
-
-    <form id="tx-form" onsubmit="handleAddTransaction(event)" novalidate>
-      <div style="display:flex;flex-direction:column;gap:18px">
-        <div class="form-group">
-          <label for="tx-amount">Amount (₹)</label>
-          <input type="number" id="tx-amount" class="form-control" placeholder="0.00" min="0.01" step="0.01" required />
-        </div>
-
-        <div class="form-group">
-          <label for="tx-category">Category</label>
-          <select id="tx-category" class="form-control" required>
-            <option value="">Select category…</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="tx-description">Description <span style="color:var(--text-muted);font-size:0.75rem">(optional)</span></label>
-          <input type="text" id="tx-description" class="form-control" placeholder="e.g. Netflix subscription" />
-        </div>
-
-        <div class="form-group">
-          <label for="tx-date">Date</label>
-          <input type="date" id="tx-date" class="form-control" required />
-        </div>
-
-        <!-- Pay from (expenses only) -->
-        <div class="form-group" id="paid-from-group" style="display:none">
-          <label for="tx-paid-from">Pay from <span style="color:var(--text-muted);font-size:0.75rem">(optional — choose income source)</span></label>
-          <select id="tx-paid-from" class="form-control">
-            <option value="">— Not specified —</option>
-          </select>
-        </div>
-
-        <div id="modal-error" class="auth-error"></div>
-
-        <button type="submit" class="btn btn-primary btn-full" id="tx-submit-btn">
-          <span id="tx-btn-text">Add Transaction</span>
-          <span id="tx-btn-spinner" class="spinner hidden"></span>
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- Toast container -->
-<div id="toast-container" aria-live="polite"></div>
-
-<!-- ═══════════════════════════════════════════════════════════
-     RECEIPT SCANNER MODAL
-     ═══════════════════════════════════════════════════════════ -->
-<div class="modal-overlay" id="receipt-modal-overlay" onclick="closeReceiptModal()" role="dialog" aria-modal="true" aria-label="Receipt Scanner">
-  <div class="modal-card" onclick="event.stopPropagation()" style="max-width:560px">
-    <div class="modal-header">
-      <h3 class="modal-title">📷 Scan Receipt</h3>
-      <button class="modal-close" onclick="closeReceiptModal()" aria-label="Close">✕</button>
-    </div>
-    <div style="padding:24px">
-      <!-- Drop zone -->
-      <div class="receipt-dropzone" id="receipt-dropzone"
-        ondragover="event.preventDefault()" ondrop="handleReceiptDrop(event)"
-        onclick="document.getElementById('receipt-file-input').click()">
-        <div class="dropzone-icon" id="dropzone-icon">📄</div>
-        <div class="dropzone-text" id="dropzone-text">Drop a receipt image here<br><small>or click to select (JPG, PNG, WebP)</small></div>
-        <input type="file" id="receipt-file-input" accept="image/*" style="display:none" onchange="handleReceiptFile(event)">
-      </div>
-
-      <!-- Scanning state -->
-      <div id="receipt-scanning" class="hidden" style="text-align:center;padding:24px">
-        <div class="spinner" style="width:36px;height:36px;margin:0 auto 12px;border-width:3px"></div>
-        <p style="color:var(--text-secondary)">Analysing receipt with AI…</p>
-      </div>
-
-      <!-- Results -->
-      <div id="receipt-results" class="hidden">
-        <div class="receipt-result-header">
-          <div id="receipt-vendor" style="font-size:1.1rem;font-weight:700;margin-bottom:4px"></div>
-          <div id="receipt-date-category" style="font-size:0.82rem;color:var(--text-muted)"></div>
-        </div>
-
-        <!-- Line items table -->
-        <div class="table-wrapper" style="margin:16px 0" id="receipt-items-wrap">
-          <table>
-            <thead><tr>
-              <th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th>
-            </tr></thead>
-            <tbody id="receipt-items-tbody"></tbody>
-          </table>
-        </div>
-
-        <!-- Totals -->
-        <div style="display:flex;flex-direction:column;gap:6px;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;font-size:0.88rem">
-          <div class="flex-between"><span style="color:var(--text-muted)">Tax / GST</span><span id="receipt-tax">—</span></div>
-          <div class="flex-between"><span style="font-weight:700">Total Amount</span><span id="receipt-total" style="font-size:1.1rem;font-weight:800;color:var(--income-light)"></span></div>
-        </div>
-
-        <div style="margin-top:16px;display:flex;gap:10px">
-          <button class="btn btn-primary btn-sm" style="flex:1" onclick="confirmReceiptTransaction()">✅ Add as Transaction</button>
-          <button class="btn btn-ghost btn-sm" onclick="rescanReceipt()">🔄 Rescan</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- ═══════════════════════════════════════════════════════════
      CASH FLOW PAGE
      ═══════════════════════════════════════════════════════════ -->
@@ -1267,6 +1143,131 @@
         </div>
       </div>
     </section>
+
+
+  </div><!-- /main-content -->
+
+</div><!-- /dashboard-layout -->
+
+<!-- ── FAB Button ───────────────────────────── -->
+<button class="fab" id="fab-btn" onclick="openModal()" title="Add transaction" aria-label="Add new transaction">＋</button>
+
+<!-- ── Add Transaction Modal ────────────────── -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOnOverlay(event)">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-header">
+      <h3 id="modal-title">Add Transaction</h3>
+      <button class="modal-close" onclick="closeModal()" aria-label="Close modal">✕</button>
+    </div>
+
+    <!-- Type toggle -->
+    <div class="type-toggle" style="margin-bottom:24px">
+      <button class="type-btn active-income" id="type-income-btn" onclick="setType('income')">💚 Income</button>
+      <button class="type-btn" id="type-expense-btn" onclick="setType('expense')">🔴 Expense</button>
+    </div>
+
+    <form id="tx-form" onsubmit="handleAddTransaction(event)" novalidate>
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="form-group">
+          <label for="tx-amount">Amount (₹)</label>
+          <input type="number" id="tx-amount" class="form-control" placeholder="0.00" min="0.01" step="0.01" required />
+        </div>
+
+        <div class="form-group">
+          <label for="tx-category">Category</label>
+          <select id="tx-category" class="form-control" required>
+            <option value="">Select category…</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="tx-description">Description <span style="color:var(--text-muted);font-size:0.75rem">(optional)</span></label>
+          <input type="text" id="tx-description" class="form-control" placeholder="e.g. Netflix subscription" />
+        </div>
+
+        <div class="form-group">
+          <label for="tx-date">Date</label>
+          <input type="date" id="tx-date" class="form-control" required />
+        </div>
+
+        <!-- Pay from (expenses only) -->
+        <div class="form-group" id="paid-from-group" style="display:none">
+          <label for="tx-paid-from">Pay from <span style="color:var(--text-muted);font-size:0.75rem">(optional — choose income source)</span></label>
+          <select id="tx-paid-from" class="form-control">
+            <option value="">— Not specified —</option>
+          </select>
+        </div>
+
+        <div id="modal-error" class="auth-error"></div>
+
+        <button type="submit" class="btn btn-primary btn-full" id="tx-submit-btn">
+          <span id="tx-btn-text">Add Transaction</span>
+          <span id="tx-btn-spinner" class="spinner hidden"></span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container" aria-live="polite"></div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     RECEIPT SCANNER MODAL
+     ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="receipt-modal-overlay" onclick="closeReceiptModal()" role="dialog" aria-modal="true" aria-label="Receipt Scanner">
+  <div class="modal-card" onclick="event.stopPropagation()" style="max-width:560px">
+    <div class="modal-header">
+      <h3 class="modal-title">📷 Scan Receipt</h3>
+      <button class="modal-close" onclick="closeReceiptModal()" aria-label="Close">✕</button>
+    </div>
+    <div style="padding:24px">
+      <!-- Drop zone -->
+      <div class="receipt-dropzone" id="receipt-dropzone"
+        ondragover="event.preventDefault()" ondrop="handleReceiptDrop(event)"
+        onclick="document.getElementById('receipt-file-input').click()">
+        <div class="dropzone-icon" id="dropzone-icon">📄</div>
+        <div class="dropzone-text" id="dropzone-text">Drop a receipt image here<br><small>or click to select (JPG, PNG, WebP)</small></div>
+        <input type="file" id="receipt-file-input" accept="image/*" style="display:none" onchange="handleReceiptFile(event)">
+      </div>
+
+      <!-- Scanning state -->
+      <div id="receipt-scanning" class="hidden" style="text-align:center;padding:24px">
+        <div class="spinner" style="width:36px;height:36px;margin:0 auto 12px;border-width:3px"></div>
+        <p style="color:var(--text-secondary)">Analysing receipt with AI…</p>
+      </div>
+
+      <!-- Results -->
+      <div id="receipt-results" class="hidden">
+        <div class="receipt-result-header">
+          <div id="receipt-vendor" style="font-size:1.1rem;font-weight:700;margin-bottom:4px"></div>
+          <div id="receipt-date-category" style="font-size:0.82rem;color:var(--text-muted)"></div>
+        </div>
+
+        <!-- Line items table -->
+        <div class="table-wrapper" style="margin:16px 0" id="receipt-items-wrap">
+          <table>
+            <thead><tr>
+              <th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th>
+            </tr></thead>
+            <tbody id="receipt-items-tbody"></tbody>
+          </table>
+        </div>
+
+        <!-- Totals -->
+        <div style="display:flex;flex-direction:column;gap:6px;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;font-size:0.88rem">
+          <div class="flex-between"><span style="color:var(--text-muted)">Tax / GST</span><span id="receipt-tax">—</span></div>
+          <div class="flex-between"><span style="font-weight:700">Total Amount</span><span id="receipt-total" style="font-size:1.1rem;font-weight:800;color:var(--income-light)"></span></div>
+        </div>
+
+        <div style="margin-top:16px;display:flex;gap:10px">
+          <button class="btn btn-primary btn-sm" style="flex:1" onclick="confirmReceiptTransaction()">✅ Add as Transaction</button>
+          <button class="btn btn-ghost btn-sm" onclick="rescanReceipt()">🔄 Rescan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="/js/dashboard.js"></script>
 </body>
