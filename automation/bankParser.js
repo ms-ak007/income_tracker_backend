@@ -20,13 +20,13 @@ const BANK_PATTERNS = [
   // HDFC: "Rs.500.00 debited from a/c ...XXXX on 20-Jun-26. Info: UPI-SWIGGY"
   {
     name: 'HDFC',
-    regex: /Rs\.?([\d,]+\.?\d{0,2})\s+(debited|credited)\s+(?:from|to)\s+[aA]\/[cC]\s+[\w\s]+?(?:Info|UPI|Ref)?[:\s-]*([^\.\n]+)/i,
+    regex: /Rs\.?\s*([\d,]+\.?\d{0,2})\s+(debited|credited)\s+(?:from|to)\s+[aA]\/[cC]\s+.*?(?:Info|UPI|Ref|to|by)[:\s-]+([^\.\n]+)/i,
     map: (m) => ({ amount: parseFloat(m[1].replace(/,/g, '')), type: m[2].toLowerCase() === 'debited' ? 'expense' : 'income', description: m[3]?.trim() }),
   },
   // SBI: "Your A/c ...1234 is debited with INR 1,200.00 on 20Jun26 by UPI/PHONEPE"
   {
     name: 'SBI',
-    regex: /[Aa]\/[Cc]\s+[\w]+\s+is\s+(debited|credited)\s+with\s+(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})\s+on\s+[\dA-Za-z]+\s+(?:by\s+)?([^\.\n]+)?/i,
+    regex: /[Aa]\/[Cc]\s+[\w\.]+\s+is\s+(debited|credited)\s+with\s+(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})\s+on\s+[\dA-Za-z]+\s+(?:by\s+)?([^\.\n]+)?/i,
     map: (m) => ({ amount: parseFloat(m[2].replace(/,/g, '')), type: m[1].toLowerCase() === 'debited' ? 'expense' : 'income', description: m[3]?.trim() }),
   },
   // ICICI: "ICICI Bank Account XX1234 has been debited with INR 500.00 on 20-Jun-2026."
@@ -47,11 +47,50 @@ const BANK_PATTERNS = [
     regex: /Kotak Bank.*?is\s+(debited|credited)\s+by\s+(?:Rs\.?|INR)\s*([\d,]+\.?\d{0,2})/i,
     map: (m) => ({ amount: parseFloat(m[2].replace(/,/g, '')), type: m[1].toLowerCase() === 'debited' ? 'expense' : 'income', description: 'Kotak Bank Transaction' }),
   },
+  // Yes Bank: "YES BANK Account XX1234 has been debited/credited with INR 500.00"
+  {
+    name: 'Yes Bank',
+    regex: /YES BANK.*?(debited|credited)\s+with\s+(?:INR|Rs\.?)\s*([\d,]+\.?\d{0,2})/i,
+    map: (m) => ({ amount: parseFloat(m[2].replace(/,/g, '')), type: m[1].toLowerCase() === 'debited' ? 'expense' : 'income', description: 'Yes Bank Transaction' }),
+  },
+  // IndusInd Bank: "IndusInd Bank A/c ...1234 debited/credited by Rs 500.00"
+  {
+    name: 'IndusInd Bank',
+    regex: /IndusInd Bank.*?(debited|credited)\s+by\s+(?:Rs\.?|INR)\s*([\d,]+\.?\d{0,2})/i,
+    map: (m) => ({ amount: parseFloat(m[2].replace(/,/g, '')), type: m[1].toLowerCase() === 'debited' ? 'expense' : 'income', description: 'IndusInd Bank Transaction' }),
+  },
+  // Bank of Baroda: "Db/Cr a/c XX...1234: Rs 500"
+  {
+    name: 'Bank of Baroda',
+    regex: /(?:Db|Cr|debited|credited).*?a\/c\s+[\w\.]*?[:\s]*(?:Rs\.?|INR)\s*([\d,]+\.?\d{0,2})/i,
+    map: (m) => {
+      const type = (m[0].toLowerCase().includes('db') || m[0].toLowerCase().includes('debited')) ? 'expense' : 'income';
+      return { amount: parseFloat(m[1].replace(/,/g, '')), type, description: 'Bank of Baroda Transaction' };
+    },
+  },
+  // PNB: "PNB: A/c XXXX debited/credited by Rs. 500"
+  {
+    name: 'PNB',
+    regex: /(?:PNB|Punjab National Bank).*?(debited|credited).*?(?:Rs\.?|INR)\s*([\d,]+\.?\d{0,2})/i,
+    map: (m) => ({ amount: parseFloat(m[2].replace(/,/g, '')), type: m[1].toLowerCase() === 'debited' ? 'expense' : 'income', description: 'PNB Transaction' }),
+  },
+  // Canara Bank: "Canara Bank A/c ...1234 debited/credited by Rs 500.00"
+  {
+    name: 'Canara Bank',
+    regex: /Canara Bank.*?(debited|credited).*?(?:Rs\.?|INR)\s*([\d,]+\.?\d{0,2})/i,
+    map: (m) => ({ amount: parseFloat(m[2].replace(/,/g, '')), type: m[1].toLowerCase() === 'debited' ? 'expense' : 'income', description: 'Canara Bank Transaction' }),
+  },
+  // Union Bank: "Union Bank A/c ...1234 debited/credited by Rs 500.00"
+  {
+    name: 'Union Bank',
+    regex: /(?:Union Bank|UBI).*?(debited|credited).*?(?:Rs\.?|INR)\s*([\d,]+\.?\d{0,2})/i,
+    map: (m) => ({ amount: parseFloat(m[2].replace(/,/g, '')), type: m[1].toLowerCase() === 'debited' ? 'expense' : 'income', description: 'Union Bank Transaction' }),
+  },
   // Paytm: "Paytm: Rs.200 paid to MERCHANT on 20-Jun-26"
   {
     name: 'Paytm',
     regex: /Paytm.*?(?:Rs\.?|INR)\s*([\d,]+\.?\d{0,2})\s+(paid to|received from)\s+([^\.\n]+)/i,
-    map: (m) => ({ amount: parseFloat(m[1].replace(/,/g, '')), type: m[2].toLowerCase().includes('paid') ? 'expense' : 'income', description: m[3]?.trim() || 'Paytm' }),
+    map: (m) => ({ amount: parseFloat(m[1].replace(/,/g, '')), type: m[2].toLowerCase().includes('paid') ? 'expense' : 'income', description: m[3]?.split(/\s+on\s+/i)[0]?.trim() || 'Paytm' }),
   },
   // PhonePe: "₹500 Debited from your PhonePe Wallet to SWIGGY"
   {
@@ -125,6 +164,7 @@ function fetchUnreadEmails(imapUser, imapPass) {
     });
 
     const emails = [];
+    const parsePromises = [];
 
     imap.once('ready', () => {
       imap.openBox('INBOX', false, (err, box) => {
@@ -137,17 +177,35 @@ function fetchUnreadEmails(imapUser, imapPass) {
 
           fetch.on('message', (msg) => {
             let buffer = '';
-            msg.on('body', (stream) => stream.on('data', c => buffer += c));
-            msg.once('end', async () => {
-              try {
-                const parsed = await simpleParser(buffer);
-                const text = (parsed.text || '') + ' ' + (parsed.subject || '');
-                emails.push(text);
-              } catch (_) {}
+            
+            const parsePromise = new Promise((resolveParse) => {
+              msg.on('body', (stream) => {
+                stream.on('data', c => { buffer += c; });
+              });
+              msg.once('end', () => {
+                simpleParser(buffer)
+                  .then(parsed => {
+                    const text = (parsed.text || '') + ' ' + (parsed.subject || '');
+                    emails.push(text);
+                    resolveParse();
+                  })
+                  .catch(() => {
+                    resolveParse(); // resolve to not block
+                  });
+              });
             });
+            parsePromises.push(parsePromise);
           });
 
-          fetch.once('end', () => { imap.end(); });
+          fetch.once('end', () => {
+            Promise.all(parsePromises)
+              .then(() => {
+                imap.end();
+              })
+              .catch(() => {
+                imap.end();
+              });
+          });
         });
       });
     });
@@ -169,6 +227,14 @@ async function pollBankEmails(user) {
     emails = await fetchUnreadEmails(user.imap_user, user.imap_pass);
   } catch (err) {
     console.error(`[BankParser] IMAP error for user ${user.id}:`, err.message);
+    try {
+      run(
+        `UPDATE user_settings SET bank_last_polled = datetime('now'), bank_last_error = ? WHERE user_id = ?`,
+        [err.message, user.id]
+      );
+    } catch (dbErr) {
+      console.error('[BankParser] Database update error:', dbErr.message);
+    }
     return;
   }
 
@@ -202,10 +268,14 @@ async function pollBankEmails(user) {
     }
   }
 
-  if (imported > 0) {
-    // Update last_polled timestamp in user_settings
-    run(`UPDATE user_settings SET bank_last_polled = datetime('now'), bank_last_count = ? WHERE user_id = ?`,
-      [imported, user.id]);
+  // Update last_polled timestamp, count, and clear error (even if 0 were imported)
+  try {
+    run(
+      `UPDATE user_settings SET bank_last_polled = datetime('now'), bank_last_count = ?, bank_last_error = NULL WHERE user_id = ?`,
+      [imported, user.id]
+    );
+  } catch (dbErr) {
+    console.error('[BankParser] Database update error:', dbErr.message);
   }
 
   console.log(`[BankParser] Done for user ${user.id}: ${imported}/${emails.length} emails matched`);

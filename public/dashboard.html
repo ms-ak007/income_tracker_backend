@@ -1047,35 +1047,123 @@
         </div>
         <div class="auto-panel-body">
           <div class="bank-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-bottom: 16px;">
-            <div class="bank-card glass" id="bank-card-hdfc" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
-              <div style="font-size: 1.8rem; margin-bottom: 6px;">🏦</div>
+            <div class="bank-card glass" id="bank-card-hdfc" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); transition: all 0.3s ease;">
+              <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin: 0 auto 8px; display: block;">
+                <rect width="100" height="100" rx="16" fill="#1E3E8C"/>
+                <rect x="20" y="20" width="22" height="22" fill="#FFFFFF"/>
+                <rect x="58" y="20" width="22" height="22" fill="#FFFFFF"/>
+                <rect x="20" y="58" width="22" height="22" fill="#FFFFFF"/>
+                <rect x="58" y="58" width="22" height="22" fill="#FFFFFF"/>
+                <rect x="46" y="20" width="8" height="60" fill="#E31E24"/>
+                <rect x="20" y="46" width="60" height="8" fill="#E31E24"/>
+              </svg>
               <div style="font-weight: 700; font-size: 0.85rem;">HDFC Bank</div>
               <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;" id="bank-status-hdfc">Ready</div>
             </div>
-            <div class="bank-card glass" id="bank-card-sbi" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
-              <div style="font-size: 1.8rem; margin-bottom: 6px;">🏛️</div>
+            <div class="bank-card glass" id="bank-card-sbi" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); transition: all 0.3s ease;">
+              <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin: 0 auto 8px; display: block;">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M50 95C74.8528 95 95 74.8528 95 50C95 25.1472 74.8528 5 50 5C25.1472 5 5 25.1472 5 50C5 74.8528 25.1472 95 50 95ZM50 62C58.8366 62 66 54.8366 66 46C66 37.1634 58.8366 30 50 30C41.1634 30 34 37.1634 34 46C34 54.8366 41.1634 62 50 62ZM46 62V95H54V62H46Z" fill="#00B1EC"/>
+              </svg>
               <div style="font-weight: 700; font-size: 0.85rem;">SBI</div>
               <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;" id="bank-status-sbi">Ready</div>
             </div>
-            <div class="bank-card glass" id="bank-card-icici" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
-              <div style="font-size: 1.8rem; margin-bottom: 6px;">💰</div>
+            <div class="bank-card glass" id="bank-card-icici" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); transition: all 0.3s ease;">
+              <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin: 0 auto 8px; display: block;">
+                <rect width="100" height="100" rx="16" fill="#7C1A1C"/>
+                <circle cx="50" cy="50" r="32" stroke="#F1AD34" stroke-width="6"/>
+                <path d="M50 26C52.76 26 55 28.24 55 31C55 33.76 52.76 36 50 36C47.24 36 45 33.76 45 31C45 28.24 47.24 26 50 26Z" fill="#F1AD34"/>
+                <path d="M45 42H55V68H58V74H42V68H45V42Z" fill="#F1AD34"/>
+              </svg>
               <div style="font-weight: 700; font-size: 0.85rem;">ICICI Bank</div>
               <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;" id="bank-status-icici">Ready</div>
             </div>
-            <div class="bank-card glass" id="bank-card-axis" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
-              <div style="font-size: 1.8rem; margin-bottom: 6px;">💳</div>
+            <div class="bank-card glass" id="bank-card-axis" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); transition: all 0.3s ease;">
+              <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin: 0 auto 8px; display: block;">
+                <rect width="100" height="100" rx="16" fill="#841A41"/>
+                <path d="M50 18L18 78H36L50 50L64 78H82L50 18Z" fill="#FFFFFF"/>
+                <path d="M50 42L38 66H62L50 42Z" fill="#841A41"/>
+                <circle cx="50" cy="58" r="6" fill="#FFFFFF"/>
+              </svg>
               <div style="font-weight: 700; font-size: 0.85rem;">Axis Bank</div>
               <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;" id="bank-status-axis">Ready</div>
             </div>
-            <div class="bank-card glass" id="bank-card-kotak" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
-              <div style="font-size: 1.8rem; margin-bottom: 6px;">🔓</div>
+            <div class="bank-card glass" id="bank-card-kotak" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); transition: all 0.3s ease;">
+              <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin: 0 auto 8px; display: block;">
+                <rect width="100" height="100" rx="16" fill="#E21C26"/>
+                <circle cx="50" cy="50" r="32" fill="white"/>
+                <path d="M40 30V70H48V53L58 70H68L56 48L66 30H56L48 43V30H40Z" fill="#E21C26"/>
+                <circle cx="62" cy="50" r="5" fill="#1C3B88"/>
+              </svg>
               <div style="font-weight: 700; font-size: 0.85rem;">Kotak Bank</div>
               <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;" id="bank-status-kotak">Ready</div>
             </div>
-            <div class="bank-card glass" id="bank-card-paytm" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
-              <div style="font-size: 1.8rem; margin-bottom: 6px;">📱</div>
+            <div class="bank-card glass" id="bank-card-paytm" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); transition: all 0.3s ease;">
+              <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin: 0 auto 8px; display: block;">
+                <rect width="100" height="100" rx="16" fill="#002E72"/>
+                <path d="M22 28H44C52 28 58 33 58 41C58 49 52 54 44 54H32V72H22V28ZM32 44H42C46 44 48 42 48 39C48 36 46 34 42 34H32V44Z" fill="#00B9F5"/>
+                <path d="M48 44H70C78 44 84 49 84 57C84 65 78 70 70 70H58V88H48V44ZM58 60H68C72 60 74 58 74 55C74 52 72 50 68 50H58V60Z" fill="#FFFFFF" opacity="0.9"/>
+              </svg>
               <div style="font-weight: 700; font-size: 0.85rem;">Paytm / UPI</div>
               <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;" id="bank-status-paytm">Ready</div>
+            </div>
+            <div class="bank-card glass" id="bank-card-yesbank" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); transition: all 0.3s ease;">
+              <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin: 0 auto 8px; display: block;">
+                <rect width="100" height="100" rx="16" fill="#0B5294"/>
+                <path d="M20 50L40 70L80 30" stroke="#ED1C24" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M20 50L40 70L80 30" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <div style="font-weight: 700; font-size: 0.85rem;">Yes Bank</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;" id="bank-status-yesbank">Ready</div>
+            </div>
+            <div class="bank-card glass" id="bank-card-indusind" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); transition: all 0.3s ease;">
+              <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin: 0 auto 8px; display: block;">
+                <rect width="100" height="100" rx="16" fill="#800000"/>
+                <path d="M30 35C30 35 35 30 45 35C55 40 65 32 70 42C75 52 68 62 60 65C52 68 40 65 35 55L30 55C30 55 25 58 28 65L32 75H38L36 68C42 72 50 74 58 72C68 70 76 60 74 48C72 36 60 25 45 28C35 30 30 35 30 35Z" fill="#F1AD34"/>
+                <path d="M25 40H35V45H25V40Z" fill="#F1AD34"/>
+              </svg>
+              <div style="font-weight: 700; font-size: 0.85rem;">IndusInd Bank</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;" id="bank-status-indusind">Ready</div>
+            </div>
+            <div class="bank-card glass" id="bank-card-bob" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); transition: all 0.3s ease;">
+              <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin: 0 auto 8px; display: block;">
+                <rect width="100" height="100" rx="16" fill="#F15A22"/>
+                <path d="M30 20H45C55 20 62 26 62 34C62 40 58 44 52 46C59 48 64 53 64 61C64 70 56 76 45 76H30V20ZM42 34C45 34 47 33 47 31C47 29 45 28 42 28H37V34H42ZM42 56H37V66H42C46 66 48 64 48 61C48 58 46 56 42 56Z" fill="#FFFFFF"/>
+                <path d="M72 25L60 30L68 36L72 25Z" fill="#FFFFFF"/>
+                <path d="M76 45L64 47L72 53L76 45Z" fill="#FFFFFF"/>
+                <path d="M72 65L60 60L68 54L72 65Z" fill="#FFFFFF"/>
+              </svg>
+              <div style="font-weight: 700; font-size: 0.85rem;">Bank of Baroda</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;" id="bank-status-bob">Ready</div>
+            </div>
+            <div class="bank-card glass" id="bank-card-pnb" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); transition: all 0.3s ease;">
+              <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin: 0 auto 8px; display: block;">
+                <rect width="100" height="100" rx="16" fill="#A21F24"/>
+                <circle cx="50" cy="50" r="30" stroke="#FCEE21" stroke-width="8"/>
+                <rect x="46" y="20" width="8" height="30" fill="#FCEE21"/>
+                <circle cx="50" cy="50" r="10" fill="#A21F24"/>
+              </svg>
+              <div style="font-weight: 700; font-size: 0.85rem;">PNB</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;" id="bank-status-pnb">Ready</div>
+            </div>
+            <div class="bank-card glass" id="bank-card-canara" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); transition: all 0.3s ease;">
+              <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin: 0 auto 8px; display: block;">
+                <rect width="100" height="100" rx="16" fill="#0077C0"/>
+                <path d="M50 20L80 70H20L50 20Z" fill="#F15A24"/>
+                <path d="M50 80L80 30H20L50 80Z" fill="#FFFFFF" opacity="0.9"/>
+                <path d="M50 40L65 65H35L50 40Z" fill="#0077C0"/>
+              </svg>
+              <div style="font-weight: 700; font-size: 0.85rem;">Canara Bank</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;" id="bank-status-canara">Ready</div>
+            </div>
+            <div class="bank-card glass" id="bank-card-union" style="padding: 16px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); transition: all 0.3s ease;">
+              <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin: 0 auto 8px; display: block;">
+                <rect width="100" height="100" rx="16" fill="#FFFFFF" stroke="rgba(255,255,255,0.05)"/>
+                <path d="M30 25V60C30 71 39 80 50 80V70C44.5 70 40 65.5 40 60V25H30Z" fill="#E31E24"/>
+                <path d="M70 25V60C70 71 61 80 50 80V70C55.5 70 60 65.5 60 60V25H70Z" fill="#0D4F9B"/>
+                <path d="M40 40H60V50H40V40Z" fill="#0D4F9B"/>
+              </svg>
+              <div style="font-weight: 700; font-size: 0.85rem;">Union Bank</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;" id="bank-status-union">Ready</div>
             </div>
           </div>
         </div>

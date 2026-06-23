@@ -91,6 +91,7 @@ function createSchema() {
   // Migration: add bank polling columns to user_settings
   try { db.run(`ALTER TABLE user_settings ADD COLUMN bank_last_polled TEXT DEFAULT NULL`); } catch (_) {}
   try { db.run(`ALTER TABLE user_settings ADD COLUMN bank_last_count INTEGER DEFAULT 0`); } catch (_) {};
+  try { db.run(`ALTER TABLE user_settings ADD COLUMN bank_last_error TEXT DEFAULT NULL`); } catch (_) {};
 
   db.run(`CREATE INDEX IF NOT EXISTS idx_tx_user_date ON transactions(user_id, date)`);
 

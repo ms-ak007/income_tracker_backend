@@ -469,6 +469,10 @@ app.put('/api/settings/notifications', requireAuth, (req, res) => {
   if (imap_user       !== undefined) { fields.push('imap_user = ?');       vals.push(imap_user || null); }
   if (imap_pass       !== undefined) { fields.push('imap_pass = ?');       vals.push(imap_pass || null); }
 
+  if (bank_parser !== undefined || imap_user !== undefined || imap_pass !== undefined) {
+    fields.push('bank_last_error = NULL');
+  }
+
   if (fields.length) {
     vals.push(req.userId);
     run(`UPDATE user_settings SET ${fields.join(', ')} WHERE user_id = ?`, vals);
@@ -792,81 +796,223 @@ app.get('/api/export/json', requireAuth, (req, res) => {
   res.json(data);
 });
 
+// Helper functions for CSV parsing
+function parseRobustDate(dateVal) {
+  if (!dateVal) return null;
+  let cleaned = dateVal.trim();
+  
+  // Regex check for DDMMMYY or DDMMMYYYY without separators, e.g., 20Jun26, 20Jun2026, 05March2026
+  const noSepMatch = cleaned.match(/^(\d{1,2})([A-Za-z]{3,9})(\d{2,4})$/);
+  if (noSepMatch) {
+    const dayPart = noSepMatch[1];
+    const monthPart = noSepMatch[2];
+    const yearPart = noSepMatch[3];
+    cleaned = `${dayPart}-${monthPart}-${yearPart}`;
+  }
+
+  const parts = cleaned.split(/[-/\.\s]+/);
+  if (parts.length === 3) {
+    let day = NaN, month = NaN, year = NaN;
+    
+    const monthNames = {
+      jan: 1, january: 1,
+      feb: 2, february: 2,
+      mar: 3, march: 3,
+      apr: 4, april: 4,
+      may: 5,
+      jun: 6, june: 6,
+      jul: 7, july: 7,
+      aug: 8, august: 8,
+      sep: 9, sept: 9, september: 9,
+      oct: 10, october: 10,
+      nov: 11, november: 11,
+      dec: 12, december: 12
+    };
+
+    const parsePart = (p) => {
+      const pLower = p.toLowerCase();
+      if (monthNames[pLower] !== undefined) {
+        return { value: monthNames[pLower], isMonthName: true };
+      }
+      const val = parseInt(p, 10);
+      return { value: val, isMonthName: false };
+    };
+
+    const p0 = parsePart(parts[0]);
+    const p1 = parsePart(parts[1]);
+    const p2 = parsePart(parts[2]);
+
+    if (parts[0].length === 4 && !isNaN(p0.value)) {
+      year = p0.value;
+      month = p1.value;
+      day = p2.value;
+    } else if (!isNaN(p2.value)) {
+      year = p2.value;
+      if (parts[2].length === 2) {
+        year = year < 50 ? 2000 + year : 1900 + year;
+      }
+      
+      if (p1.isMonthName) {
+        month = p1.value;
+        day = p0.value;
+      } else {
+        if (p0.value > 12 && p1.value <= 12) {
+          day = p0.value;
+          month = p1.value;
+        } else if (p1.value > 12 && p0.value <= 12) {
+          day = p1.value;
+          month = p0.value;
+        } else {
+          day = p0.value;
+          month = p1.value;
+        }
+      }
+    }
+    
+    if (!isNaN(day) && !isNaN(month) && !isNaN(year) && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+  }
+
+  const parsedD = new Date(cleaned);
+  if (!isNaN(parsedD.getTime())) {
+    return parsedD.toISOString().slice(0, 10);
+  }
+
+  return null;
+}
+
+function cleanRobustAmount(amountStr) {
+  if (!amountStr) return 0;
+  const cleaned = amountStr.replace(/[^0-9.-]/g, '');
+  const val = parseFloat(cleaned);
+  return isNaN(val) ? 0 : val;
+}
+
 // POST /api/bank/import-statement — Import bank statement CSV
 app.post('/api/bank/import-statement', requireAuth, statementUpload.single('statement'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No CSV file uploaded' });
 
   try {
     const csvContent = fs.readFileSync(req.file.path, 'utf8');
-    // Clean up temp file
     fs.unlink(req.file.path, () => {});
 
-    // Parse CSV line by line
     const lines = csvContent.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
     if (lines.length < 2) {
       return res.status(400).json({ error: 'CSV file is empty or missing data rows' });
     }
 
-    // Try to find headers: Date, Description/Narration, Amount, Type
-    const headers = lines[0].split(',').map(h => h.replace(/^["']|["']$/g, '').trim().toLowerCase());
-    
-    // Find column indexes
-    let dateIdx = headers.findIndex(h => h.includes('date'));
-    let descIdx = headers.findIndex(h => h.includes('desc') || h.includes('narr') || h.includes('particular') || h.includes('info'));
-    let amountIdx = headers.findIndex(h => h.includes('amount') || h.includes('value') || h.includes('rs') || h.includes('inr'));
-    let typeIdx = headers.findIndex(h => h.includes('type') || h.includes('cr/dr') || h.includes('d/c') || h.includes('credit/debit') || h.includes('transaction type'));
+    let headerIdx = 0;
+    let dateIdx = -1;
+    let descIdx = -1;
+    let debitIdx = -1;
+    let creditIdx = -1;
+    let amountIdx = -1;
+    let typeIdx = -1;
 
-    // Fallbacks if headers are not detected
+    for (let i = 0; i < Math.min(lines.length, 25); i++) {
+      const line = lines[i];
+      const cells = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(h => h.replace(/^["']|["']$/g, '').trim().toLowerCase());
+      
+      const hasDate = cells.some(c => c.includes('date'));
+      const hasDesc = cells.some(c => c.includes('desc') || c.includes('narr') || c.includes('particular') || c.includes('remark') || c.includes('info'));
+      const hasAmount = cells.some(c => c.includes('amount') || c.includes('value') || c.includes('debit') || c.includes('credit') || c.includes('withdrawal') || c.includes('deposit') || c.includes('rs') || c.includes('inr'));
+
+      if (hasDate && (hasDesc || hasAmount)) {
+        headerIdx = i;
+        const headers = cells;
+        
+        dateIdx = headers.findIndex(h => h.includes('txn date') || h.includes('tran date') || h.includes('transaction date'));
+        if (dateIdx === -1) dateIdx = headers.findIndex(h => h.includes('date'));
+        
+        descIdx = headers.findIndex(h => h.includes('particular') || h.includes('narr') || h.includes('desc') || h.includes('remark') || h.includes('info'));
+        
+        debitIdx = headers.findIndex(h => (h === 'dr' || h.includes('debit') || h.includes('withdrawal') || h.includes('payment') || h.includes('(dr)')) && !h.includes('balance'));
+        creditIdx = headers.findIndex(h => (h === 'cr' || h.includes('credit') || h.includes('deposit') || h.includes('receipt') || h.includes('(cr)')) && !h.includes('balance'));
+        
+        amountIdx = headers.findIndex(h => (h.includes('amount') || h.includes('value') || h.includes('rs') || h.includes('inr')) && !h.includes('balance'));
+        
+        typeIdx = headers.findIndex(h => h.includes('type') || h.includes('cr/dr') || h.includes('d/c') || h.includes('credit/debit') || h.includes('transaction type'));
+        
+        break;
+      }
+    }
+
+    if (dateIdx === -1) {
+      headerIdx = 0;
+      const headers = lines[0].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(h => h.replace(/^["']|["']$/g, '').trim().toLowerCase());
+      dateIdx = headers.findIndex(h => h.includes('date'));
+      descIdx = headers.findIndex(h => h.includes('desc') || h.includes('narr') || h.includes('particular') || h.includes('info') || h.includes('remark'));
+      debitIdx = headers.findIndex(h => (h === 'dr' || h.includes('debit') || h.includes('withdrawal') || h.includes('(dr)')) && !h.includes('balance'));
+      creditIdx = headers.findIndex(h => (h === 'cr' || h.includes('credit') || h.includes('deposit') || h.includes('(cr)')) && !h.includes('balance'));
+      amountIdx = headers.findIndex(h => (h.includes('amount') || h.includes('value') || h.includes('rs') || h.includes('inr')) && !h.includes('balance'));
+      typeIdx = headers.findIndex(h => h.includes('type') || h.includes('cr/dr') || h.includes('d/c') || h.includes('credit/debit'));
+    }
+
     if (dateIdx === -1) dateIdx = 0;
     if (descIdx === -1) descIdx = 1;
-    if (amountIdx === -1) amountIdx = headers.length > 2 ? 2 : 1;
-    if (typeIdx === -1) typeIdx = headers.length > 3 ? 3 : -1;
+    if (debitIdx === -1 && creditIdx === -1 && amountIdx === -1) {
+      amountIdx = 2;
+    }
 
     const parsedTxs = [];
     const todayStr = new Date().toISOString().slice(0, 10);
 
-    for (let i = 1; i < lines.length; i++) {
-      // Split and handle commas inside quotes
+    for (let i = headerIdx + 1; i < lines.length; i++) {
       const row = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.replace(/^["']|["']$/g, '').trim());
-      if (row.length <= Math.max(dateIdx, descIdx, amountIdx)) continue;
+      if (row.length <= Math.max(dateIdx, descIdx)) continue;
 
-      let dateVal = row[dateIdx] || todayStr;
+      let dateVal = row[dateIdx] || '';
       let descVal = row[descIdx] || 'Bank Transaction';
-      let amountVal = parseFloat(row[amountIdx].replace(/[^0-9.-]/g, '')) || 0;
-      let typeVal = 'expense'; // default
+      let cleanDate = parseRobustDate(dateVal) || todayStr;
+      
+      let amountVal = 0;
+      let typeVal = 'expense';
 
-      if (typeIdx !== -1 && row[typeIdx]) {
-        const typeStr = row[typeIdx].toLowerCase();
-        if (typeStr.includes('cr') || typeStr.includes('credit') || typeStr.includes('dep') || typeStr.includes('in')) {
+      if (debitIdx !== -1 || creditIdx !== -1) {
+        const debitValStr = debitIdx !== -1 ? row[debitIdx] : '';
+        const creditValStr = creditIdx !== -1 ? row[creditIdx] : '';
+        
+        const debitAmt = Math.abs(cleanRobustAmount(debitValStr));
+        const creditAmt = Math.abs(cleanRobustAmount(creditValStr));
+
+        if (creditAmt > 0 && debitAmt === 0) {
+          amountVal = creditAmt;
           typeVal = 'income';
+        } else if (debitAmt > 0 && creditAmt === 0) {
+          amountVal = debitAmt;
+          typeVal = 'expense';
+        } else if (debitAmt > 0 && creditAmt > 0) {
+          amountVal = debitAmt;
+          typeVal = 'expense';
+        } else {
+          continue; 
         }
       } else {
-        // If type column not found, try guessing from amount sign or description keywords
-        if (amountVal < 0) {
-          typeVal = 'expense';
-          amountVal = Math.abs(amountVal);
-        } else if (descVal.toLowerCase().includes('salary') || descVal.toLowerCase().includes('refund') || descVal.toLowerCase().includes('credited') || descVal.toLowerCase().includes('interest')) {
-          typeVal = 'income';
-        }
-      }
+        if (amountIdx === -1 || row.length <= amountIdx) continue;
+        amountVal = cleanRobustAmount(row[amountIdx] || '');
+        if (amountVal === 0) continue;
 
-      // Standardize date to YYYY-MM-DD
-      let cleanDate = todayStr;
-      try {
-        const dateParts = dateVal.split(/[-/]/);
-        if (dateParts.length === 3) {
-          if (dateParts[2].length === 4) {
-            cleanDate = `${dateParts[2]}-${dateParts[1].padStart(2,'0')}-${dateParts[0].padStart(2,'0')}`;
-          } else if (dateParts[0].length === 4) {
-            cleanDate = `${dateParts[0]}-${dateParts[1].padStart(2,'0')}-${dateParts[2].padStart(2,'0')}`;
+        if (typeIdx !== -1 && row.length > typeIdx && row[typeIdx]) {
+          const typeStr = row[typeIdx].toLowerCase();
+          if (typeStr.includes('cr') || typeStr.includes('credit') || typeStr.includes('dep') || typeStr.includes('in') || typeStr.includes('deposit')) {
+            typeVal = 'income';
+          } else {
+            typeVal = 'expense';
           }
         } else {
-          const parsedD = new Date(dateVal);
-          if (!isNaN(parsedD.getTime())) {
-            cleanDate = parsedD.toISOString().slice(0, 10);
+          if (amountVal < 0) {
+            typeVal = 'expense';
+            amountVal = Math.abs(amountVal);
+          } else {
+            if (descVal.toLowerCase().includes('salary') || descVal.toLowerCase().includes('refund') || descVal.toLowerCase().includes('credited') || descVal.toLowerCase().includes('interest') || descVal.toLowerCase().includes('deposit')) {
+              typeVal = 'income';
+            } else {
+              typeVal = 'expense';
+            }
           }
         }
-      } catch (_) {}
+      }
 
       if (amountVal > 0) {
         const guessedCat = guessCategory(descVal, typeVal);
@@ -897,11 +1043,17 @@ app.post('/api/bank/confirm-statement', requireAuth, async (req, res) => {
   let count = 0;
   try {
     for (const t of transactions) {
-      run(
+      const result = run(
         `INSERT INTO transactions (user_id, type, category, amount, description, date, paid_from) VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [req.userId, t.type, t.category, t.amount, t.description, t.date, null]
       );
       count++;
+
+      if (t.type === 'expense') {
+        const tx = { id: result.lastInsertRowid, ...t };
+        checkBudgets(req.userId, t.category).catch(() => {});
+        evaluatePolicies(req.userId, tx).catch(() => {});
+      }
     }
     res.json({ success: true, count });
   } catch (err) {

@@ -1584,7 +1584,9 @@ async function loadBankPage() {
   // Status
   const statusEl = document.getElementById('bank-page-status');
   if (statusEl) {
-    if (s.bank_last_polled) {
+    if (s.bank_last_error) {
+      statusEl.innerHTML = `<span style="color: #ef4444; font-weight: 600;">❌ Sync error: ${escHtml(s.bank_last_error)}</span><br><small style="color: var(--text-muted);">Last check: ${s.bank_last_polled ? new Date(s.bank_last_polled).toLocaleString('en-IN') : 'Never'}</small>`;
+    } else if (s.bank_last_polled) {
       statusEl.textContent = `Last synced: ${new Date(s.bank_last_polled).toLocaleString('en-IN')} · ${s.bank_last_count || 0} transactions imported`;
     } else {
       statusEl.textContent = 'Never synced';
@@ -1595,7 +1597,7 @@ async function loadBankPage() {
   const hasCreds = !!(s.imap_user && s.imap_configured);
   const active = s.bank_parser === 1 && hasCreds;
   
-  const banks = ['hdfc', 'sbi', 'icici', 'axis', 'kotak', 'paytm'];
+  const banks = ['hdfc', 'sbi', 'icici', 'axis', 'kotak', 'paytm', 'yesbank', 'indusind', 'bob', 'pnb', 'canara', 'union'];
   banks.forEach(b => {
     const card = document.getElementById(`bank-card-${b}`);
     const status = document.getElementById(`bank-status-${b}`);
